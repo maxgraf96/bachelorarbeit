@@ -46,8 +46,7 @@ def check_duration(value):
 def read_settings():
     settings_base_dir = ''
     if sys.platform.startswith('linux'):
-        settings_base_dir = os.getenv(
-            'HOME') + os.sep + '.config' + os.sep + 'radiorec'
+        settings_base_dir = ''
     elif sys.platform == 'win32':
         settings_base_dir = os.getenv('LOCALAPPDATA') + os.sep + 'radiorec'
     elif sys.platform == 'darwin':
@@ -56,7 +55,7 @@ def read_settings():
     settings_base_dir += os.sep
     config = configparser.ConfigParser()
     try:
-        config.read_file(open(settings_base_dir + 'settings.ini'))
+        config.read_file(open('radiorec_settings.ini'))
     except FileNotFoundError as err:
         print(str(err))
         print('Please copy/create the settings file to/in the appropriate '
