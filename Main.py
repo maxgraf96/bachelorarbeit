@@ -7,7 +7,7 @@ import time
 import radiorec
 import pyAudioAnalysis.audioBasicIO as abio
 
-#aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
+aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
 
 # measure time
 start = time.time()

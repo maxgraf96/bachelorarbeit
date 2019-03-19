@@ -6,7 +6,7 @@ import numpy
 import math
 from scipy.fftpack import fft
 from scipy.fftpack.realtransforms import dct
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pyAudioAnalysis import audioBasicIO
 from pyAudioAnalysis import utilities
 from scipy.signal import lfilter
