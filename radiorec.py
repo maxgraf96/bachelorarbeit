@@ -161,7 +161,7 @@ def my_record(url, duration, file_name, args=None):
                     tmpstr = line.decode('utf-8')
                     break
         streamurl = tmpstr
-    target_dir = os.path.expandvars(settings['GLOBAL']['target_dir']) + "/data/test"
+    target_dir = "data/test"
     stoprec = threading.Event()
 
     recthread = threading.Thread(target=my_record_worker, args=(stoprec, streamurl, target_dir, False, file_name, args))

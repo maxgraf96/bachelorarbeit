@@ -31,7 +31,7 @@ while i < 10:
 
     # MFCC
     np_dat = abio.stereo2mono(abio.readAudioFile(path)[1]).astype("float32")
-    mfcc = librosa.feature.mfcc(np_dat)
+    #mfcc = librosa.feature.mfcc(np_dat)
     #print(mfcc)
 
     music_speech_tuple = result[1]
