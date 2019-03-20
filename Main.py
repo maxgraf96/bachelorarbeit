@@ -1,3 +1,4 @@
+import glob
 import os
 
 from pyAudioAnalysis import audioTrainTest as aT
@@ -7,6 +8,9 @@ import time
 import radiorec
 import pyAudioAnalysis.audioBasicIO as abio
 import MFCC
+import AudioConverter as ac
+import scipy.io.wavfile as wav
+from joblib import dump, load
 
 #aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
 
@@ -22,11 +26,26 @@ url = 'https://fm4shoutcast.sf.apa.at'
 mixer.init()
 i = 0
 
-MFCC.read_mfcc("data/speech/little/84-121123-0000.wav")
-while i < 0:
+
+# persist svm
+if len(glob.glob("mfcc_svm.joblib")) < 1:
+    mfcc_svm = MFCC.train_mfcc_svm(0, "data/speech/verylittle", "data/music/verylittle")
+    dump(mfcc_svm, 'mfcc_svm.joblib')
+else:
+    mfcc_svm = load('mfcc_svm.joblib')
+
+while i < 10:
     currentFile = "stream_" + str(i)
     radiorec.my_record(url, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
+
+    # for mfcc classification
+    wav_path = ac.mp3_to_wav(path)
+    current_mfcc = MFCC.get_mfcc_average(MFCC.read_mfcc(wav_path))
+    result_mfcc = mfcc_svm.predict(current_mfcc)
+    print(result_mfcc)
+
+    '''
     result = aT.fileClassification(path, "svmSMtemp", "svm")
 
     music_speech_tuple = result[1]
@@ -37,13 +56,15 @@ while i < 0:
         renamed = "data/test/" + currentFile + "_sp.mp3"
         #os.rename(path, renamed)
 
+    '''
+
     # play audio stream
     #mixer.music.load(renamed)
     mixer.music.load(path)
     mixer.music.play()
     i = i + 1
 
-    print(result)
+    #print(result)
 
 
 #end = time.time()
