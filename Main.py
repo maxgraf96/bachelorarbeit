@@ -6,11 +6,12 @@ from pygame import mixer
 import time
 import radiorec
 import pyAudioAnalysis.audioBasicIO as abio
+import MFCC
 
 #aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
 
 # measure time
-start = time.time()
+#start = time.time()
 
 # clear previous streams
 for p in Path("data/test").glob("stream*.mp3"):
@@ -21,7 +22,8 @@ url = 'https://fm4shoutcast.sf.apa.at'
 mixer.init()
 i = 0
 
-while i < 10:
+MFCC.read_mfcc("data/speech/little/84-121123-0000.wav")
+while i < 0:
     currentFile = "stream_" + str(i)
     radiorec.my_record(url, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
@@ -44,6 +46,6 @@ while i < 10:
     print(result)
 
 
-end = time.time()
-print(end - start)
+#end = time.time()
+#print(end - start)
 

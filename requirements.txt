@@ -1,3 +1,4 @@
+python_speech_features
 audioread==2.1.6
 certifi==2018.11.29
 cffi==1.12.2
