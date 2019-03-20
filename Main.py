@@ -29,7 +29,7 @@ i = 0
 
 # persist svm
 if len(glob.glob("mfcc_svm.joblib")) < 1:
-    mfcc_svm = MFCC.train_mfcc_svm(0, "data/speech/verylittle", "data/music/verylittle")
+    mfcc_svm = MFCC.train_mfcc_svm(0, "data/speech/little", "data/music")
     dump(mfcc_svm, 'mfcc_svm.joblib')
 else:
     mfcc_svm = load('mfcc_svm.joblib')
