@@ -15,6 +15,7 @@ import scipy.io.wavfile as wav
 import numpy as np
 from joblib import dump, load
 from sklearn.decomposition import PCA
+import tensorflow as tf
 
 #aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
 
@@ -27,17 +28,33 @@ for p in Path("data/test").glob("stream*.mp3"):
 
 # init
 url = 'https://fm4shoutcast.sf.apa.at'
-url = 'http://c14000-l.i.core.cdn.streamfarm.net/14000cina/live/3212erf_96/live_de_96.mp3'
+#url = 'http://c14000-l.i.core.cdn.streamfarm.net/14000cina/live/3212erf_96/live_de_96.mp3'
 mixer.init()
 i = 0
 
 
-# persist svm
-if len(glob.glob("mfcc_svm.joblib")) < 1:
-    mfcc_svm, pca = MFCC.train_mfcc_svm("data/speech", "data/music", 3000)
-    dump([mfcc_svm, pca], 'mfcc_svm.joblib')
+# persist classifier
+#if len(glob.glob("clf.joblib")) < 1:
+if len(glob.glob("clf.h5")) < 1:
+    print("Saving model...")
+    # kNN
+    # clf, pca = MFCC.train_mfcc_knn("data/speech", "data/music", 3000)
+    # dump([clf, pca], 'clf.joblib')
+
+    # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
+    clf, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 3000)
+    clf.save('clf.h5')
+
+
 else:
-    [mfcc_svm, pca] = load('mfcc_svm.joblib')
+    print("Restoring model...")
+    # kNN
+    #[clf, pca] = load('clf.joblib')
+
+    # Tensorflow nn
+    clf = tf.keras.models.load_model('clf.h5')
+
+
 
 while i < 10:
     currentFile = "stream_" + str(i)
@@ -49,16 +66,18 @@ while i < 10:
 
     current_mfcc = MFCC.read_mfcc(wav_path)
 
-    result_mfcc = mfcc_svm.predict(
-        pca.transform(
-            sklearn.preprocessing.scale(current_mfcc, axis=1)
-        )
-    )
-    ones = np.count_nonzero(result_mfcc)
+    # result = clf.predict(
+    #     pca.transform(
+    #         sklearn.preprocessing.scale(current_mfcc, axis=1)
+    #     )
+    # )
+
+    result = MFCC.predict_nn(clf, current_mfcc)
+    ones = np.count_nonzero(result)
+    zeros = len(result) - ones
     print("Ones: " + str(ones))
-    print("Zeros: " + str(len(result_mfcc) - ones))
-    print("Music: " + str(ones / len(result_mfcc)))
-    #print(result_mfcc)
+    print("Zeros: " + str(zeros))
+    print("Music: " + str(round(ones / len(result), 4)))
 
     '''
     result = aT.fileClassification(path, "svmSMtemp", "svm")
@@ -80,6 +99,7 @@ while i < 10:
     i = i + 1
 
     #print(result)
+
 
 
 #end = time.time()

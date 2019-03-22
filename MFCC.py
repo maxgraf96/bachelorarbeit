@@ -7,15 +7,47 @@ import scipy.io.wavfile as wav
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA
+import tensorflow as tf
 import glob
 import AudioConverter as ac
 import soundfile as sf
 from pyAudioAnalysis import audioBasicIO
 
+def train_mfcc_nn(path_speech, path_music, max_duration):
 
-def train_mfcc_svm(path_speech, path_music, max_duration):
+    # Calculate MFCCs
+    trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
+
+    # Preprocessing
+    trn = sklearn.preprocessing.scale(trn, axis=1)
+    pca = PCA(n_components=7)
+    principal_components = pca.fit_transform(trn)
+
+    # Classifier fitting
+    # Tensorflow nn
+    clf = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(1, 26)),
+        tf.keras.layers.Dense(128, activation=tf.nn.relu),
+        tf.keras.layers.Dense(2, activation=tf.nn.softmax)
+    ])
+    clf.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+
+    trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
+    clf.fit(trn, lbls, epochs=3)
+
+    return clf, pca
+
+def predict_nn(clf, mfcc_in):
+    mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
+    prediction = clf.predict(mfcc_in)
+    result = np.greater(prediction[:, 1], prediction[:, 0])
+    return result.astype(int)
+
+def train_mfcc_knn(path_speech, path_music, max_duration):
     """
-    Trains a SVM with the given label (0 = speech, 1 = music) and all the files within the given path.
+    Trains a KNN with the given label (0 = speech, 1 = music) and all the files within the given path.
     If MP3 files are found, they are converted to 16kHz wav files before processing
     :param path_speech: The path to the speech files
     :param path_music: The path to the music files
@@ -23,6 +55,22 @@ def train_mfcc_svm(path_speech, path_music, max_duration):
     :return: The trained classifier and PCA object
     """
 
+    # Calculate MFCCs
+    trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
+
+
+    # Preprocessing
+    trn = sklearn.preprocessing.scale(trn, axis=1)
+    pca = PCA(n_components=7)
+    principal_components = pca.fit_transform(trn)
+
+    # Classifier fitting
+    # knn
+    clf = KNeighborsClassifier(n_neighbors=7)
+    clf.fit(principal_components, lbls)
+    return [clf, pca]
+
+def calculate_mfccs(path_speech, path_music, max_duration):
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
     sp_mfccs = []
@@ -75,34 +123,26 @@ def train_mfcc_svm(path_speech, path_music, max_duration):
         # do not exceed the total number of MFCCs in the speech set.
         # This guarantees that the numbers of MFCCs in the speech and music sets are always ~ the same
         if len(wav_mfccs) + len(current_mfccs) > len_sp_mfccs:
-            break
+            # Use 'continue' and not 'break' because that way it migth be possible that a shorter file is
+            # found that can 'fill the remaining-MFCC-gap'
+            continue
         for j in range(len(current_mfccs)):
             wav_mfccs.append(current_mfccs[j])
 
     print("Processed " + str(round(acc_duration, 2)) + " minutes of music data.")
+
+    # Convert MFCC list into array for fitting
     mu_mfccs = np.array(wav_mfccs)
+    # Create the labels for the music files
     mu_lbls = np.ones(len(wav_mfccs))
 
     print("Got " + str(len(sp_mfccs)) + " speech MFCCs and " + str(len(mu_mfccs)) + " music MFCCs.")
 
-    # concat arrays
+    # Concat arrays
     trn = np.concatenate((sp_mfccs, mu_mfccs))
     lbls = np.concatenate((sp_lbls, mu_lbls))
 
-    # -------------------------- Preprocessing --------------------------
-    trn = sklearn.preprocessing.scale(trn, axis=1)
-    pca = PCA(n_components=5)
-    principal_components = pca.fit_transform(trn)
-
-    # -------------------------- Classifier fitting --------------------------
-    # svm
-    # clf = svm.SVC(gamma=0.001, C=100)
-    # clf.fit(trn, lbls)
-
-    # knn
-    clf = KNeighborsClassifier(n_neighbors=5)
-    clf.fit(principal_components, lbls)
-    return [clf, pca]
+    return trn, lbls
 
 
 def read_mfcc(wav_file_path):
