@@ -12,6 +12,7 @@ import glob
 import AudioConverter as ac
 import soundfile as sf
 from pyAudioAnalysis import audioBasicIO
+import util
 
 def train_mfcc_nn(path_speech, path_music, max_duration):
 
@@ -76,7 +77,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
     sp_mfccs = []
     acc_duration = 0  # The accumulated length of processed files in seconds
     for i in range(len(speech_files)):
-        duration = get_wav_duration(speech_files[i])
+        duration = util.get_wav_duration(speech_files[i])
         if acc_duration + duration > max_duration:
             break
         acc_duration += duration
@@ -110,8 +111,9 @@ def calculate_mfccs(path_speech, path_music, max_duration):
     wavs = glob.glob(path_music + "/**/*.wav", recursive=True)
     wav_mfccs = []
     acc_duration = 0  # reset processed length
+    retries = 0  # retries for the skipping of files that are too long
     for i in range(len(wavs)):
-        duration = get_wav_duration(speech_files[i])
+        duration = util.get_wav_duration(speech_files[i])
         if acc_duration + duration > max_duration:
             break
         acc_duration += duration
@@ -125,6 +127,10 @@ def calculate_mfccs(path_speech, path_music, max_duration):
         if len(wav_mfccs) + len(current_mfccs) > len_sp_mfccs:
             # Use 'continue' and not 'break' because that way it migth be possible that a shorter file is
             # found that can 'fill the remaining-MFCC-gap'
+            # Break after 15 tries
+            if retries > 15:
+                break
+            retries += 1
             continue
         for j in range(len(current_mfccs)):
             wav_mfccs.append(current_mfccs[j])
@@ -154,9 +160,3 @@ def read_mfcc(wav_file_path):
     # fbank_feat = logfbank(sig, rate)
 
     return np.append(mfcc_feat, d_mfcc_feat, axis=1)
-
-
-def get_wav_duration(file):
-    f = sf.SoundFile(file)
-    # Duration = number of samples divided by the sample rate
-    return len(f) / f.samplerate

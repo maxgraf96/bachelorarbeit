@@ -27,6 +27,7 @@ import stat
 import sys
 import threading
 import urllib.request
+import time
 
 
 def check_duration(value):
@@ -92,9 +93,9 @@ def record_worker(stoprec, streamurl, target_dir, args):
             target.write(conn.read(1024))
 
 
-def my_record_worker(stoprec, streamurl, target_dir, linux_public, fileName, args):
-    conn = urllib.request.urlopen(streamurl)
+def my_record_worker(stoprec, streamurl, target_dir, linux_public, fileName, duration, args):
     #cur_dt_string = datetime.datetime.now().strftime('%Y-%m-%dT%H_%M_%S')
+    conn = urllib.request.urlopen(streamurl)
     filename = target_dir + os.sep + fileName
     content_type = conn.getheader('Content-Type')
     if content_type == 'audio/mpeg':
@@ -113,8 +114,13 @@ def my_record_worker(stoprec, streamurl, target_dir, linux_public, fileName, arg
             verboseprint('Apply public write permissions (Linux only)')
             os.chmod(filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP |
                      stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
-        while not stoprec.is_set() and not conn.closed:
-            target.write(conn.read(1024))
+
+        # Assuming a 128kbps stream, 16000 bytes are one second of music
+        target.write(conn.read(16000 * int(duration)))
+        # while not conn.closed:
+        #     if time.time() > timeout:
+        #         break
+        #     target.write(conn.read(1024))
 
 
 def record(args):
@@ -151,9 +157,8 @@ def record(args):
 
 
 def my_record(url, duration, file_name, args=None):
-    settings = read_settings()
-    streamurl = url
 
+    streamurl = url
     if streamurl.endswith('.m3u'):
         with urllib.request.urlopen(streamurl) as remotefile:
             for line in remotefile:
@@ -164,7 +169,7 @@ def my_record(url, duration, file_name, args=None):
     target_dir = "data/test"
     stoprec = threading.Event()
 
-    recthread = threading.Thread(target=my_record_worker, args=(stoprec, streamurl, target_dir, False, file_name, args))
+    recthread = threading.Thread(target=my_record_worker, args=(stoprec, streamurl, target_dir, False, file_name, duration, args))
     recthread.setDaemon(True)
     recthread.start()
     recthread.join(timeout=duration)

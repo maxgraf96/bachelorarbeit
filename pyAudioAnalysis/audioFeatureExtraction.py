@@ -400,7 +400,7 @@ def beatExtraction(st_features, win_len, PLOT=False):
      - Ratio:          a confidence measure
     """
 
-    # Features that are related to the beat tracking task:
+    # features that are related to the beat tracking task:
     toWatch = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
 
     max_beat_time = int(round(2.0 / win_len))

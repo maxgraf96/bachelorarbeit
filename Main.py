@@ -1,21 +1,13 @@
 import glob
-import os
 
-import sklearn
-
-from pyAudioAnalysis import audioTrainTest as aT
+import Output
 from pathlib import Path
 from pygame import mixer
-import time
 import radiorec
-import pyAudioAnalysis.audioBasicIO as abio
-import MFCC
+from features import MFCC, CFA
 import AudioConverter as ac
-import scipy.io.wavfile as wav
-import numpy as np
-from joblib import dump, load
-from sklearn.decomposition import PCA
 import tensorflow as tf
+import threading
 
 #aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
 
@@ -42,7 +34,7 @@ if len(glob.glob("clf.h5")) < 1:
     # dump([clf, pca], 'clf.joblib')
 
     # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-    clf, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 3000)
+    clf, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 10000)
     clf.save('clf.h5')
 
 
@@ -52,11 +44,14 @@ else:
     #[clf, pca] = load('clf.joblib')
 
     # Tensorflow nn
-    clf = tf.keras.models.load_model('clf.h5')
+    #clf = tf.keras.models.load_model('clf.h5')
+
+    # Train CFA model
+    clf, pca = CFA.train_cfa_nn("data/speech", "data/music", 100)
 
 
 
-while i < 10:
+while i < 3:
     currentFile = "stream_" + str(i)
     radiorec.my_record(url, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
@@ -72,13 +67,6 @@ while i < 10:
     #     )
     # )
 
-    result = MFCC.predict_nn(clf, current_mfcc)
-    ones = np.count_nonzero(result)
-    zeros = len(result) - ones
-    print("Ones: " + str(ones))
-    print("Zeros: " + str(zeros))
-    print("Music: " + str(round(ones / len(result), 4)))
-
     '''
     result = aT.fileClassification(path, "svmSMtemp", "svm")
 
@@ -93,15 +81,14 @@ while i < 10:
     '''
 
     # play audio stream
-    #mixer.music.load(renamed)
-    mixer.music.load(path)
+    mixer.music.load(wav_path)
     mixer.music.play()
+
+    # Output results
+    current_duration = MFCC.get_wav_duration(wav_path)
+    thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf, current_duration, 9), args=(10,))
+    thread.start()
+    thread.join()
+    print("Output thread finished...")
+
     i = i + 1
-
-    #print(result)
-
-
-
-#end = time.time()
-#print(end - start)
-

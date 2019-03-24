@@ -8,3 +8,10 @@ def mp3_to_wav(src):
     converted = src[:-3] + "wav"
     sound.export(converted, format="wav", parameters=["-ar", "16000"])
     return converted
+
+def wav_to_11_khz(src):
+    sound = AudioSegment.from_wav(src)
+    converted = src[:-4] + "_11_kHz.wav"
+    sound.export(converted, format="wav", parameters=["-ar", "11025"])
+    return converted
+
