@@ -15,3 +15,9 @@ def wav_to_11_khz(src):
     sound.export(converted, format="wav", parameters=["-ar", "11025"])
     return converted
 
+def mp3_to_11_khz_wav(src):
+    sound = AudioSegment.from_mp3(src)
+    converted = src[:-4] + "_11_kHz.wav"
+    sound.export(converted, format="wav", parameters=["-ar", "11025"])
+    return converted
+

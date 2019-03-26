@@ -47,25 +47,29 @@ else:
     #clf = tf.keras.models.load_model('clf.h5')
 
     # Train CFA model
-    clf, pca = CFA.train_cfa_nn("data/speech", "data/music", 100)
+    #clf, pca = CFA.train_cfa_nn("data/speech", "data/music", 100)
+    CFA.calculate_cfas_music("data/music", max_duration=1000, threshold=1.24)
 
 
 
-while i < 3:
+while i < 20:
     currentFile = "stream_" + str(i)
-    radiorec.my_record(url, 3.0, currentFile)
+    radiorec.my_record(url, 5.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
 
     # for mfcc classification
     wav_path = ac.mp3_to_wav(path)
 
-    current_mfcc = MFCC.read_mfcc(wav_path)
+    #current_mfcc = MFCC.read_mfcc(wav_path)
 
     # result = clf.predict(
     #     pca.transform(
     #         sklearn.preprocessing.scale(current_mfcc, axis=1)
     #     )
     # )
+
+    # CFA classification
+    CFA.calculate_cfa(path, threshold=1.24)
 
     '''
     result = aT.fileClassification(path, "svmSMtemp", "svm")
@@ -85,10 +89,10 @@ while i < 3:
     mixer.music.play()
 
     # Output results
-    current_duration = MFCC.get_wav_duration(wav_path)
-    thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf, current_duration, 9), args=(10,))
-    thread.start()
-    thread.join()
-    print("Output thread finished...")
+    # current_duration = MFCC.get_wav_duration(wav_path)
+    # thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf, current_duration, 9), args=(10,))
+    # thread.start()
+    # thread.join()
+    # print("Output thread finished...")
 
     i = i + 1

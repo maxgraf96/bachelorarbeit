@@ -1,4 +1,7 @@
 import glob
+import math
+
+import scipy
 
 import numpy as np
 import sklearn
@@ -47,48 +50,136 @@ def predict_nn(clf, mfcc_in):
     result = np.greater(prediction[:, 1], prediction[:, 0])
     return result.astype(int)
 
+def calculate_cfa(file, threshold):
+    # The CFA calculation is subidivided into several steps
+    # 1: Read the audio file and cut off all frequencies > 11kHz
+    # Check if a converted wav is present before converting to 11kHz wav
+    if ".mp3" in file:
+        file = ac.mp3_to_11_khz_wav(file)
+
+    converted_path = file[:-4] + "_11_kHz.wav"
+    if "11_kHz" in file:
+        pass;
+    elif not "11_kHz" in file and not glob.glob(converted_path):
+        file = ac.wav_to_11_khz(file)
+    else:
+        file = converted_path
+    (rate, signal) = wav.read(file)
+    sig = np.array(signal)
+    # Convert signal to mono
+    sig = audioBasicIO.stereo2mono(sig)
+    # 2: Apply noise gate
+    noise_gate_level = 0.005
+    sig[sig < noise_gate_level] = 0
+
+    # 3: Estimate the spectrogram using a Hanning window
+    window = np.hanning(1024)  # 1024 samples correspond to ~ 100ms
+
+    # 4: Calculate the spectrogram using stft and emphasize local maxima
+    frequencies, times, spec = scipy.signal.stft(sig, window=window, nperseg=1024)
+    # N = 21
+    # frames = spec.shape[1]
+    # for i in range(frames):
+    #
+    #     for j in range(spec.shape[0]):
+    #         k = 0 if j < 10 else 10
+    #         l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
+    #         current_sum = np.sum(spec[(j - k):(j + l), i])
+    #         spec[j, i] = spec[j, i] - ((1 / N) * current_sum)
+
+    # 5: Binarize
+    spec = np.where(spec > 0.1, 1, 0)
+
+    # 6: Create blocks consisting of 100 frames each with 50 blocks overlap
+    no_blocks = math.ceil(spec.shape[1] / 50)
+    blocks = []
+    peakis = []  # in the end this list contains the peakiness values for all blocks
+    for step in range(no_blocks):
+        start = step * 50
+        end = start + 100
+        if end > spec.shape[1]:
+            end = spec.shape[1]
+        block = spec[:, start:end]
+        blocks.append(block)
+
+        # Compute the frequency activation function for each block
+        act_func = np.sum(block, axis=1) / block.shape[1]
+
+        # Detect strong peaks
+        peaks = scipy.signal.find_peaks(act_func)[0]  # [0] because we only want the indices
+        minima = scipy.signal.argrelextrema(act_func, np.less)[0]
+        pvvalues = []
+        for peakidx in peaks:
+            # find nearest local minimum to the left
+            search = np.abs(minima[minima < peakidx] - peakidx)
+            if len(search) == 0:
+                nearest_idx_l = 0
+                # print("Len = 0 L")
+            else:
+                nearest_idx_l = search.argmin()
+            # find nearest local minimum to the right
+            search = np.abs(minima[minima > peakidx] - peakidx)
+            if len(search) == 0:
+                nearest_idx_r = 0
+                # print("Len = 0 R")
+            else:
+                nearest_idx_r = search.argmin()
+
+            xl = act_func[peakidx] - act_func[nearest_idx_l]
+            xr = act_func[peakidx] - act_func[nearest_idx_r]
+            height = min(xl, xr)
+            width = peakidx - nearest_idx_l if xl < xr else nearest_idx_r - peakidx
+            pv = height / width
+            pvvalues.append(pv)
+
+        pvvalues = np.array(pvvalues)
+        pvvalues[::-1].sort()  # sort descending
+        finals = pvvalues[0:5]
+        peakiness = np.sum(finals)
+        peakis.append(peakiness)
+
+    result = np.sum(peakis) / len(peakis)
+    if result < threshold:
+        print("speech")
+    else:
+        print("music")
+    return peakis
+
+def calculate_cfas_music(path_music, max_duration, threshold):
+    # -------------------------- Music --------------------------
+    music_files = glob.glob(path_music + "/**/*.wav", recursive=True)  # list of files in given path
+    sp_cfas = []
+    acc_duration = 0  # The accumulated length of processed files in seconds
+    for file in range(len(music_files)):
+        duration = util.get_wav_duration(music_files[file])
+        if acc_duration + duration > max_duration:
+            break
+        acc_duration += duration
+
+        print(str(file) + " of " + str(len(music_files)) + " - processing " + str(music_files[file]))
+        peakis = calculate_cfa(music_files[file], threshold)
+
+
 def calculate_cfas(path_speech, path_music, max_duration):
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
     sp_cfas = []
     acc_duration = 0  # The accumulated length of processed files in seconds
-    for i in range(len(speech_files)):
-        duration = util.get_wav_duration(speech_files[i])
+    for file in range(len(speech_files)):
+        duration = util.get_wav_duration(speech_files[file])
         if acc_duration + duration > max_duration:
             break
         acc_duration += duration
 
-        print(str(i) + " of " + str(len(speech_files)) + " - processing " + str(speech_files[i]))
-
-        # The CFA calculation is subidivided into several steps
-        # 1: Read the audio file and cut off all frequencies > 11kHz
-        # Check if a converted wav is present before converting to 11kHz wav
-        converted_path = speech_files[i][:-4] + "_11_kHz.wav"
-        if not glob.glob(converted_path):
-            speech_files[i] = ac.wav_to_11_khz(speech_files[i])
-        (rate, signal) = wav.read(speech_files[i])
-        sig = np.array(signal)
-        # Convert signal to mono
-        sig = audioBasicIO.stereo2mono(sig)
-        # 2: Apply noise gate
-        noise_gate_level = 0.005
-        sig[sig < noise_gate_level] = 0
-
-        # 3: Estimate the spectrogram using a Hanning window
-        window = np.hanning(1024)  # 1024 samples correspond to ~ 100ms
-
-        # 4: Calculate the spectrogram using fft
-        spectrogram, times, both = stft(sig, window=window, nperseg=1024)
-        N = 21
-        for i in range(len(spectrogram)):
-            spectrogram[i] = spectrogram[i] - ((1/N)) # TODO finish
+        print(str(file) + " of " + str(len(speech_files)) + " - processing " + str(speech_files[file]))
+        peakis = calculate_cfa(speech_files[file])
         a = 2
 
 
-        #for j in range(len(current_mfccs)):
-        #    sp_mfccs.append(current_mfccs[j])
+    #for j in range(len(current_mfccs)):
+    #    sp_mfccs.append(current_mfccs[j])
 
-    print("Processed " + str(round(acc_duration, 2)) + " minutes of speech data.")
+    print("Processed " + str(round(acc_duration, 2) / 60) + " minutes of speech data.")
     #print("Got " + str(len(sp_mfccs)) + " speech MFCCs.")
 
     #len_sp_mfccs = len(sp_mfccs)
