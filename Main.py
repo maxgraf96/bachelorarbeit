@@ -48,7 +48,7 @@ else:
 
     # Train CFA model
     #clf, pca = CFA.train_cfa_nn("data/speech", "data/music", 100)
-    CFA.calculate_cfas_music("data/music", max_duration=1000, threshold=1.24)
+    CFA.calculate_cfas_music("data/speech", max_duration=1000, threshold=1.24)
 
 
 

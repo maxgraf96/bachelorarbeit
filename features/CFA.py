@@ -52,7 +52,8 @@ def predict_nn(clf, mfcc_in):
 
 def calculate_cfa(file, threshold):
     # The CFA calculation is subidivided into several steps
-    # 1: Read the audio file and cut off all frequencies > 11kHz
+
+    # Read the audio file and cut off all frequencies > 11kHz
     # Check if a converted wav is present before converting to 11kHz wav
     if ".mp3" in file:
         file = ac.mp3_to_11_khz_wav(file)
@@ -66,31 +67,30 @@ def calculate_cfa(file, threshold):
         file = converted_path
     (rate, signal) = wav.read(file)
     sig = np.array(signal)
+
     # Convert signal to mono
     sig = audioBasicIO.stereo2mono(sig)
-    # 2: Apply noise gate
+
+    # Apply noise gate
     noise_gate_level = 0.005
     sig[sig < noise_gate_level] = 0
 
-    # 3: Estimate the spectrogram using a Hanning window
+    # Estimate the spectrogram using a Hanning window
     window = np.hanning(1024)  # 1024 samples correspond to ~ 100ms
 
-    # 4: Calculate the spectrogram using stft and emphasize local maxima
-    frequencies, times, spec = scipy.signal.stft(sig, window=window, nperseg=1024)
-    # N = 21
-    # frames = spec.shape[1]
-    # for i in range(frames):
-    #
-    #     for j in range(spec.shape[0]):
-    #         k = 0 if j < 10 else 10
-    #         l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
-    #         current_sum = np.sum(spec[(j - k):(j + l), i])
-    #         spec[j, i] = spec[j, i] - ((1 / N) * current_sum)
+    # Calculate the spectrogram using stft and emphasize local maxima
+    frequencies, times, spec = scipy.signal.stft(sig, fs=rate, window=window, nperseg=1024)
+    N = 21
+    for j in range(spec.shape[0]):
+        k = 0 if j < 10 else 10
+        l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
+        current_sum = np.sum(spec[(j - k):(j + l), :], axis=0)
+        spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
 
-    # 5: Binarize
+    # Binarize
     spec = np.where(spec > 0.1, 1, 0)
 
-    # 6: Create blocks consisting of 100 frames each with 50 blocks overlap
+    # Create blocks consisting of 100 frames each with 50 blocks overlap
     no_blocks = math.ceil(spec.shape[1] / 50)
     blocks = []
     peakis = []  # in the end this list contains the peakiness values for all blocks
@@ -106,24 +106,26 @@ def calculate_cfa(file, threshold):
         act_func = np.sum(block, axis=1) / block.shape[1]
 
         # Detect strong peaks
-        peaks = scipy.signal.find_peaks(act_func)[0]  # [0] because we only want the indices
+        peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because we only want the indices
         minima = scipy.signal.argrelextrema(act_func, np.less)[0]
         pvvalues = []
         for peakidx in peaks:
             # find nearest local minimum to the left
-            search = np.abs(minima[minima < peakidx] - peakidx)
+            smaller_peak_indices = minima[minima < peakidx]
+            search = np.abs(smaller_peak_indices - peakidx)
             if len(search) == 0:
                 nearest_idx_l = 0
                 # print("Len = 0 L")
             else:
-                nearest_idx_l = search.argmin()
+                nearest_idx_l = smaller_peak_indices[search.argmin()]
             # find nearest local minimum to the right
-            search = np.abs(minima[minima > peakidx] - peakidx)
+            greater_peak_indices = minima[minima > peakidx]
+            search = np.abs(greater_peak_indices - peakidx)
             if len(search) == 0:
                 nearest_idx_r = 0
                 # print("Len = 0 R")
             else:
-                nearest_idx_r = search.argmin()
+                nearest_idx_r = greater_peak_indices[search.argmin()]
 
             xl = act_func[peakidx] - act_func[nearest_idx_l]
             xr = act_func[peakidx] - act_func[nearest_idx_r]
@@ -140,9 +142,9 @@ def calculate_cfa(file, threshold):
 
     result = np.sum(peakis) / len(peakis)
     if result < threshold:
-        print("speech")
+        print(str(round(result, 3)) + ": speech")
     else:
-        print("music")
+        print(str(round(result, 3)) + ": music")
     return peakis
 
 def calculate_cfas_music(path_music, max_duration, threshold):
