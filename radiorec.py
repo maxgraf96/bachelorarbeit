@@ -89,7 +89,7 @@ def record_worker(stoprec, streamurl, target_dir, args):
             os.chmod(filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP |
                      stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
         verboseprint('Recording ' + args.station + '...')
-        while (not stoprec.is_set() and not conn.closed):
+        while not stoprec.is_set() and not conn.closed:
             target.write(conn.read(1024))
 
 

@@ -1,9 +1,12 @@
 import glob
+import sys
+from time import sleep
 
 import Output
 from pathlib import Path
 from pygame import mixer
 import radiorec
+import util
 from features import MFCC, CFA
 import AudioConverter as ac
 import tensorflow as tf
@@ -20,7 +23,7 @@ for p in Path("data/test").glob("stream*.mp3"):
 
 # init
 url = 'https://fm4shoutcast.sf.apa.at'
-#url = 'http://c14000-l.i.core.cdn.streamfarm.net/14000cina/live/3212erf_96/live_de_96.mp3'
+url = 'http://c14000-l.i.core.cdn.streamfarm.net/14000cina/live/3212erf_96/live_de_96.mp3'
 mixer.init()
 i = 0
 
@@ -34,8 +37,11 @@ if len(glob.glob("clf.h5")) < 1:
     # dump([clf, pca], 'clf.joblib')
 
     # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-    clf, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 10000)
-    clf.save('clf.h5')
+    clf_mfcc, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 10000)
+    clf_mfcc.save('clf.h5')
+
+    # clf_cfa = CFA.train_cfa_nn("data/speech", "data/music", 30)
+    # clf_cfa.save('clf_cfa.h5')
 
 
 else:
@@ -44,55 +50,69 @@ else:
     #[clf, pca] = load('clf.joblib')
 
     # Tensorflow nn
-    #clf = tf.keras.models.load_model('clf.h5')
+    clf_mfcc = tf.keras.models.load_model('clf.h5')
 
-    # Train CFA model
-    #clf, pca = CFA.train_cfa_nn("data/speech", "data/music", 100)
-    CFA.calculate_cfas_music("data/speech", max_duration=1000, threshold=1.24)
+    #clf_cfa = tf.keras.models.load_model('clf_cfa.h5')
 
+#cfa = CFA.calculate_cfas("data/speech", "data/music", 5)
 
-
-while i < 20:
+while i < 10:
     currentFile = "stream_" + str(i)
-    radiorec.my_record(url, 5.0, currentFile)
+    radiorec.my_record(url, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
 
-    # for mfcc classification
+    # Convert streamed mp3 to wav
     wav_path = ac.mp3_to_wav(path)
-
-    #current_mfcc = MFCC.read_mfcc(wav_path)
-
-    # result = clf.predict(
-    #     pca.transform(
-    #         sklearn.preprocessing.scale(current_mfcc, axis=1)
-    #     )
-    # )
-
-    # CFA classification
-    CFA.calculate_cfa(path, threshold=1.24)
-
-    '''
-    result = aT.fileClassification(path, "svmSMtemp", "svm")
-
-    music_speech_tuple = result[1]
-    if music_speech_tuple[0] > music_speech_tuple[1]:
-        renamed = "data/test/" + currentFile + "_mu.mp3"
-        #os.rename(path, renamed)
-    else:
-        renamed = "data/test/" + currentFile + "_sp.mp3"
-        #os.rename(path, renamed)
-
-    '''
 
     # play audio stream
     mixer.music.load(wav_path)
     mixer.music.play()
 
-    # Output results
-    # current_duration = MFCC.get_wav_duration(wav_path)
-    # thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf, current_duration, 9), args=(10,))
-    # thread.start()
-    # thread.join()
-    # print("Output thread finished...")
+    # MFCC classification
+    current_mfcc = MFCC.read_mfcc(wav_path)
 
-    i = i + 1
+    # CFA classification
+    cfa = CFA.calculate_cfa(path)
+
+    # Output results
+    current_duration = util.get_wav_duration(wav_path)
+    thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, 9), args=(10,))
+    thread.start()
+    thread.join()
+
+    # Output for CFA
+    cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
+    cfa_thread.start()
+    cfa_thread.join()
+    #print("Output thread finished...")
+
+    sleep(.9)
+    i += 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+result = aT.fileClassification(path, "svmSMtemp", "svm")
+
+music_speech_tuple = result[1]
+if music_speech_tuple[0] > music_speech_tuple[1]:
+    renamed = "data/test/" + currentFile + "_mu.mp3"
+    #os.rename(path, renamed)
+else:
+    renamed = "data/test/" + currentFile + "_sp.mp3"
+    #os.rename(path, renamed)
+
+'''

@@ -1,6 +1,6 @@
 from time import sleep
 import numpy as np
-from features import MFCC
+from features import MFCC, CFA
 
 
 def print_mfcc(mfcc, clf, duration, splits=9):
@@ -15,8 +15,15 @@ def print_mfcc(mfcc, clf, duration, splits=9):
         result = MFCC.predict_nn(clf, split[i])
         ones = np.count_nonzero(result)
         zeros = len(result) - ones
-        print("Ones: " + str(ones))
-        print("Zeros: " + str(zeros))
+        #print("Ones: " + str(ones))
+        #print("Zeros: " + str(zeros))
         print("Music: " + str(round(ones / len(result), 4)))
-        print()
+        #print()
         sleep(sleep_duration)
+
+def print_cfa(cfa, threshold=1.24):
+    if cfa < threshold:
+        res = "Speech"
+    else:
+        res = "Music"
+    print(res + ", value = " + str(round(cfa, 2)))

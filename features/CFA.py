@@ -20,18 +20,15 @@ Continuous frequency activation feature via http://www.cp.jku.at/research/papers
 """
 
 
-def train_cfa_nn(path_speech, path_music, max_duration):
+def train_cfa_nn(path_speech, path_music, max_cfas):
 
     # Calculate CFA features
-    trn, lbls = calculate_cfas(path_speech, path_music, max_duration)
-
-    # Preprocessing
-    trn = sklearn.preprocessing.scale(trn, axis=1)
+    trn, lbls = calculate_cfas(path_speech, path_music, max_cfas)
 
     # Classifier fitting
     # Tensorflow nn
     clf = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(1, 26)),
+        tf.keras.layers.Flatten(input_shape=(1, 1)),
         tf.keras.layers.Dense(128, activation=tf.nn.relu),
         tf.keras.layers.Dense(2, activation=tf.nn.softmax)
     ])
@@ -39,18 +36,17 @@ def train_cfa_nn(path_speech, path_music, max_duration):
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
 
-    trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
+    trn = trn.reshape((trn.shape[0], 1, 1))
     clf.fit(trn, lbls, epochs=3)
 
     return clf
 
-def predict_nn(clf, mfcc_in):
-    mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
-    prediction = clf.predict(mfcc_in)
-    result = np.greater(prediction[:, 1], prediction[:, 0])
-    return result.astype(int)
+def predict_nn(clf, cfa):
+    cfa = cfa.reshape((1, 1, 1))
+    prediction = clf.predict(cfa)
+    return prediction
 
-def calculate_cfa(file, threshold):
+def calculate_cfa(file):
     # The CFA calculation is subidivided into several steps
 
     # Read the audio file and cut off all frequencies > 11kHz
@@ -60,8 +56,8 @@ def calculate_cfa(file, threshold):
 
     converted_path = file[:-4] + "_11_kHz.wav"
     if "11_kHz" in file:
-        pass;
-    elif not "11_kHz" in file and not glob.glob(converted_path):
+        pass
+    elif "11_kHz" not in file and not glob.glob(converted_path):
         file = ac.wav_to_11_khz(file)
     else:
         file = converted_path
@@ -72,7 +68,7 @@ def calculate_cfa(file, threshold):
     sig = audioBasicIO.stereo2mono(sig)
 
     # Apply noise gate
-    noise_gate_level = 0.005
+    noise_gate_level = 0.5
     sig[sig < noise_gate_level] = 0
 
     # Estimate the spectrogram using a Hanning window
@@ -88,15 +84,15 @@ def calculate_cfa(file, threshold):
         spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
 
     # Binarize
-    spec = np.where(spec > 0.1, 1, 0)
+    spec = np.where(spec > 10, 1, 0)
 
     # Create blocks consisting of 100 frames each with 50 blocks overlap
-    no_blocks = math.ceil(spec.shape[1] / 50)
+    no_blocks = math.ceil(spec.shape[1] / 25)
     blocks = []
     peakis = []  # in the end this list contains the peakiness values for all blocks
     for step in range(no_blocks):
-        start = step * 50
-        end = start + 100
+        start = step * 25
+        end = start + 50
         if end > spec.shape[1]:
             end = spec.shape[1]
         block = spec[:, start:end]
@@ -141,54 +137,55 @@ def calculate_cfa(file, threshold):
         peakis.append(peakiness)
 
     result = np.sum(peakis) / len(peakis)
-    if result < threshold:
-        print(str(round(result, 3)) + ": speech")
-    else:
-        print(str(round(result, 3)) + ": music")
-    return peakis
-
-def calculate_cfas_music(path_music, max_duration, threshold):
-    # -------------------------- Music --------------------------
-    music_files = glob.glob(path_music + "/**/*.wav", recursive=True)  # list of files in given path
-    sp_cfas = []
-    acc_duration = 0  # The accumulated length of processed files in seconds
-    for file in range(len(music_files)):
-        duration = util.get_wav_duration(music_files[file])
-        if acc_duration + duration > max_duration:
-            break
-        acc_duration += duration
-
-        print(str(file) + " of " + str(len(music_files)) + " - processing " + str(music_files[file]))
-        peakis = calculate_cfa(music_files[file], threshold)
+    return result
 
 
-def calculate_cfas(path_speech, path_music, max_duration):
+def calculate_cfas(path_speech, path_music, max_cfas):
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
     sp_cfas = []
-    acc_duration = 0  # The accumulated length of processed files in seconds
-    for file in range(len(speech_files)):
-        duration = util.get_wav_duration(speech_files[file])
-        if acc_duration + duration > max_duration:
-            break
-        acc_duration += duration
-
+    for file in range(max_cfas):
         print(str(file) + " of " + str(len(speech_files)) + " - processing " + str(speech_files[file]))
-        peakis = calculate_cfa(speech_files[file])
-        a = 2
+        result = calculate_cfa(speech_files[file])
+        sp_cfas.append(result)
 
+    print("Processed " + str(max_cfas) + " speech files.")
 
-    #for j in range(len(current_mfccs)):
-    #    sp_mfccs.append(current_mfccs[j])
-
-    print("Processed " + str(round(acc_duration, 2) / 60) + " minutes of speech data.")
-    #print("Got " + str(len(sp_mfccs)) + " speech MFCCs.")
-
-    #len_sp_mfccs = len(sp_mfccs)
-    #sp_mfccs = np.array(sp_mfccs)
-    #sp_lbls = np.zeros(len(sp_mfccs))
+    sp_cfas = np.array(sp_cfas)
+    sp_lbls = np.zeros(len(sp_cfas))
+    print("Average CFA speech: " + str(np.average(sp_cfas)));
 
     # -------------------------- Music --------------------------
+    if path_music is None:
+        return
+
+    music_files = glob.glob(path_music + "/**/*.wav", recursive=True)  # list of files in given path
+    mu_cfas = []
+
+    # In this case iterate as long as the number of cfas of both classes are the same as the cfa result
+    # is not linked to the duration of the file -> we need the same number of cfas so that the classifier is
+    # not biased
+    i = 0
+    for file in range(max_cfas):
+        print(str(file) + " of " + str(len(music_files)) + " - processing " + str(music_files[file]))
+        result = calculate_cfa(music_files[file])
+        mu_cfas.append(result)
+        i += 1
+
+    print("Processed " + str(max_cfas) + " music files.")
+
+    # Convert CFS list into array for fitting
+    mu_cfas = np.array(mu_cfas)
+    # Create the labels for the music files
+    mu_lbls = np.ones(len(mu_cfas))
+
+    # Concat arrays
+    trn = np.concatenate((sp_cfas, mu_cfas))
+    lbls = np.concatenate((sp_lbls, mu_lbls))
+
+    print("Average CFA speech: " + str(np.average(sp_cfas)) + ", Average CFA music: " + str(np.average(mu_cfas)))
+
+
     """
     mp3s = glob.glob(path_music + "/**/*.mp3", recursive=True)  # list of mp3s in given path
 
@@ -244,5 +241,5 @@ def calculate_cfas(path_speech, path_music, max_duration):
     lbls = np.concatenate((sp_lbls, mu_lbls))
     """
 
-    #return trn, lbls
-    return 0, 1
+    return trn, lbls
+
