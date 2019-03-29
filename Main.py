@@ -1,5 +1,4 @@
 import glob
-import sys
 from time import sleep
 
 import Output
@@ -7,15 +6,10 @@ from pathlib import Path
 from pygame import mixer
 import radiorec
 import util
-from features import MFCC, CFA
+from features import MFCC, CFA, ABL
 import AudioConverter as ac
 import tensorflow as tf
 import threading
-
-#aT.featureAndTrain(["data/music/verylittle","data/speech/verylittle"], 1.0, 1.0, aT.shortTermWindow, aT.shortTermStep, "svm", "svmSMtemp", False)
-
-# measure time
-#start = time.time()
 
 # clear previous streams
 for p in Path("data/test").glob("stream*.mp3"):
@@ -25,7 +19,7 @@ for p in Path("data/test").glob("stream*.mp3"):
 mixer.init()
 i = 0
 
-station = "radiovorarlberg"
+station = "erfplus"
 
 
 # persist classifier
@@ -37,7 +31,7 @@ if len(glob.glob("clf.h5")) < 1:
     # dump([clf, pca], 'clf.joblib')
 
     # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-    clf_mfcc, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 10000)
+    clf_mfcc, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 1000)
     clf_mfcc.save('clf.h5')
 
     # clf_cfa = CFA.train_cfa_nn("data/speech", "data/music", 30)
@@ -50,13 +44,14 @@ else:
     #[clf, pca] = load('clf.joblib')
 
     # Tensorflow nn
-    clf_mfcc = tf.keras.models.load_model('clf.h5')
+    #clf_mfcc = tf.keras.models.load_model('clf.h5')
 
     #clf_cfa = tf.keras.models.load_model('clf_cfa.h5')
 
 #cfa = CFA.calculate_cfas("data/speech", "data/music", 10)
+#trn, lbls = ABL.calculate_abls("data/speech", "data/music", 20)
 
-while i < 10:
+while i < 30:
     currentFile = "stream_" + str(i)
     radiorec.my_record(station, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
@@ -65,28 +60,31 @@ while i < 10:
     wav_path = ac.mp3_to_wav(path)
 
     # MFCC classification
-    current_mfcc = MFCC.read_mfcc(wav_path)
+    #current_mfcc = MFCC.read_mfcc(wav_path)
 
     # CFA classification
-    cfa = CFA.calculate_cfa(path)
+    #cfa = CFA.calculate_cfa(path)
+
+    # ABL classification
+    abl = ABL.calculate_abl(path)
+
+    # Output for MFCC
+    # current_duration = util.get_wav_duration(wav_path)
+    # thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, 9), args=(10,))
+    # thread.start()
+    # thread.join()
+
+    # Output for CFA
+    # cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
+    # cfa_thread.start()
+    # cfa_thread.join()
 
     # play audio stream
     mixer.music.load(wav_path[:-4] + "_11_kHz.wav")
     mixer.music.play()
+    mixer.music.fadeout(3000)
 
-    # Output results
-    current_duration = util.get_wav_duration(wav_path)
-    thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, 9), args=(10,))
-    thread.start()
-    thread.join()
-
-    # Output for CFA
-    cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
-    cfa_thread.start()
-    cfa_thread.join()
-    #print("Output thread finished...")
-
-    sleep(.9)
+    #sleep(.9)
     i += 1
 
 

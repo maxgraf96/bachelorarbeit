@@ -1,48 +1,18 @@
 import glob
-
-import librosa
 import math
 
-import scipy
-
 import numpy as np
-import tensorflow as tf
+import scipy
 import scipy.io.wavfile as wav
+import tensorflow as tf
 from scipy.signal import stft
 
-import util
 import AudioConverter as ac
+import util
 
 """
 Continuous frequency activation feature via http://www.cp.jku.at/research/papers/Seyerlehner_etal_DAFx_2007.pdf
 """
-
-
-def train_cfa_nn(path_speech, path_music, max_cfas):
-
-    # Calculate CFA features
-    trn, lbls = calculate_cfas(path_speech, path_music, max_cfas)
-
-    # Classifier fitting
-    # Tensorflow nn
-    clf = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(1, 1)),
-        tf.keras.layers.Dense(128, activation=tf.nn.relu),
-        tf.keras.layers.Dense(2, activation=tf.nn.softmax)
-    ])
-    clf.compile(optimizer='adam',
-                  loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    trn = trn.reshape((trn.shape[0], 1, 1))
-    clf.fit(trn, lbls, epochs=3)
-
-    return clf
-
-def predict_nn(clf, cfa):
-    cfa = cfa.reshape((1, 1, 1))
-    prediction = clf.predict(cfa)
-    return prediction
 
 def calculate_cfa(file):
     # The CFA calculation is subidivided into several steps
@@ -75,11 +45,6 @@ def calculate_cfa(file):
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spec = scipy.signal.stft(sig, fs=rate, window=window, nperseg=1024)
 
-    # HPSS
-    spec_hpss = np.copy(spec)
-    harmonic, percussive = librosa.decompose.hpss(spec_hpss)
-
-
     # N = 21
     # for j in range(spec.shape[0]):
     #     k = 0 if j < 10 else 10
@@ -89,7 +54,7 @@ def calculate_cfa(file):
 
     # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
     #spec = np.delete(spec, np.s_[27:280], axis=0)
-    np.multiply(spec[27:280, :], 0.0001)
+    np.multiply(spec[27:280, :], 0.001)
 
     # Binarize
     spec = np.where(spec > 10, 1, 0)
@@ -161,7 +126,7 @@ def calculate_cfas(path_speech, path_music, max_cfas):
 
     sp_cfas = np.array(sp_cfas)
     sp_lbls = np.zeros(len(sp_cfas))
-    print("Average CFA speech: " + str(np.average(sp_cfas)));
+    print("Average CFA speech: " + str(np.average(sp_cfas)))
 
     # -------------------------- Music --------------------------
     if path_music is None:
@@ -182,7 +147,7 @@ def calculate_cfas(path_speech, path_music, max_cfas):
 
     print("Processed " + str(max_cfas) + " music files.")
 
-    # Convert CFS list into array for fitting
+    # Convert CFA list into array for fitting
     mu_cfas = np.array(mu_cfas)
     # Create the labels for the music files
     mu_lbls = np.ones(len(mu_cfas))
@@ -193,61 +158,31 @@ def calculate_cfas(path_speech, path_music, max_cfas):
 
     print("Average CFA speech: " + str(np.average(sp_cfas)) + ", Average CFA music: " + str(np.average(mu_cfas)))
 
-
-    """
-    mp3s = glob.glob(path_music + "/**/*.mp3", recursive=True)  # list of mp3s in given path
-
-    # convert mp3s to wavs
-    for i in range(len(mp3s)):
-        # Only convert if the converted file doesn't exist yet
-        if len(glob.glob(mp3s[i][:-4] + ".wav")) > 0:
-            print("Found wav file, skipping...")
-            continue
-
-        print("Converting " + str(mp3s[i]) + " to wav.")
-        ac.mp3_to_wav(mp3s[i])
-
-    # process music wavs
-    wavs = glob.glob(path_music + "/**/*.wav", recursive=True)
-    wav_mfccs = []
-    acc_duration = 0  # reset processed length
-    retries = 0  # retries for the skipping of files that are too long
-    for i in range(len(wavs)):
-        duration = get_wav_duration(speech_files[i])
-        if acc_duration + duration > max_duration:
-            break
-        acc_duration += duration
-
-        print(str(i) + " of " + str(len(wavs)) + " - processing " + str(wavs[i]))
-        current_mfccs = read_mfcc(wavs[i])
-
-        # Only append the MFCCs if the number of current MFCCs + the number of MFCCs in the currently processed file
-        # do not exceed the total number of MFCCs in the speech set.
-        # This guarantees that the numbers of MFCCs in the speech and music sets are always ~ the same
-        if len(wav_mfccs) + len(current_mfccs) > len_sp_mfccs:
-            # Use 'continue' and not 'break' because that way it migth be possible that a shorter file is
-            # found that can 'fill the remaining-MFCC-gap'
-            # Break after 15 tries
-            if retries > 15:
-                break
-            retries += 1
-            continue
-        for j in range(len(current_mfccs)):
-            wav_mfccs.append(current_mfccs[j])
-
-    print("Processed " + str(round(acc_duration, 2)) + " minutes of music data.")
-
-    # Convert MFCC list into array for fitting
-    mu_mfccs = np.array(wav_mfccs)
-    # Create the labels for the music files
-    mu_lbls = np.ones(len(wav_mfccs))
-
-    print("Got " + str(len(sp_mfccs)) + " speech MFCCs and " + str(len(mu_mfccs)) + " music MFCCs.")
-
-    # Concat arrays
-    trn = np.concatenate((sp_mfccs, mu_mfccs))
-    lbls = np.concatenate((sp_lbls, mu_lbls))
-    """
-
     return trn, lbls
+
+def train_cfa_nn(path_speech, path_music, max_cfas):
+
+    # Calculate CFA features
+    trn, lbls = calculate_cfas(path_speech, path_music, max_cfas)
+
+    # Classifier fitting
+    # Tensorflow nn
+    clf = tf.keras.models.Sequential([
+        tf.keras.layers.Flatten(input_shape=(1, 1)),
+        tf.keras.layers.Dense(128, activation=tf.nn.relu),
+        tf.keras.layers.Dense(2, activation=tf.nn.softmax)
+    ])
+    clf.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+
+    trn = trn.reshape((trn.shape[0], 1, 1))
+    clf.fit(trn, lbls, epochs=3)
+
+    return clf
+
+def predict_nn(clf, cfa):
+    cfa = cfa.reshape((1, 1, 1))
+    prediction = clf.predict(cfa)
+    return prediction
 

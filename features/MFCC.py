@@ -1,17 +1,17 @@
-import sklearn
-from python_speech_features import mfcc
-from python_speech_features import delta
-from python_speech_features import logfbank
+import glob
+
 import numpy as np
 import scipy.io.wavfile as wav
-from sklearn import svm
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.decomposition import PCA
+import sklearn
 import tensorflow as tf
-import glob
+from python_speech_features import delta
+from python_speech_features import mfcc
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsClassifier
+
 import AudioConverter as ac
-import soundfile as sf
 import util
+
 
 def train_mfcc_nn(path_speech, path_music, max_duration):
 
@@ -20,7 +20,7 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
 
     # Preprocessing
     trn = sklearn.preprocessing.scale(trn, axis=1)
-    pca = PCA(n_components=7)
+    pca = PCA(n_components=9)
     principal_components = pca.fit_transform(trn)
 
     # Classifier fitting
