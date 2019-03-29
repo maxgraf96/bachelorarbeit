@@ -54,7 +54,7 @@ else:
 
     #clf_cfa = tf.keras.models.load_model('clf_cfa.h5')
 
-#cfa = CFA.calculate_cfas("data/speech", "data/music", 5)
+#cfa = CFA.calculate_cfas("data/speech", "data/music", 10)
 
 while i < 10:
     currentFile = "stream_" + str(i)
@@ -64,15 +64,15 @@ while i < 10:
     # Convert streamed mp3 to wav
     wav_path = ac.mp3_to_wav(path)
 
-    # play audio stream
-    mixer.music.load(wav_path)
-    mixer.music.play()
-
     # MFCC classification
     current_mfcc = MFCC.read_mfcc(wav_path)
 
     # CFA classification
     cfa = CFA.calculate_cfa(path)
+
+    # play audio stream
+    mixer.music.load(wav_path[:-4] + "_11_kHz.wav")
+    mixer.music.play()
 
     # Output results
     current_duration = util.get_wav_duration(wav_path)

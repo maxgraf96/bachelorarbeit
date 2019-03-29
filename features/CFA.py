@@ -1,4 +1,6 @@
 import glob
+
+import librosa
 import math
 
 import scipy
@@ -76,12 +78,22 @@ def calculate_cfa(file):
 
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spec = scipy.signal.stft(sig, fs=rate, window=window, nperseg=1024)
+
+    # HPSS
+    spec_hpss = np.copy(spec)
+    harmonic, percussive = librosa.decompose.hpss(spec_hpss)
+
+
     N = 21
     for j in range(spec.shape[0]):
         k = 0 if j < 10 else 10
         l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
         current_sum = np.sum(spec[(j - k):(j + l), :], axis=0)
         spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
+
+    # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
+    #spec = np.delete(spec, np.s_[27:280], axis=0)
+    np.multiply(spec[27:280, :], 0.001)
 
     # Binarize
     spec = np.where(spec > 10, 1, 0)
