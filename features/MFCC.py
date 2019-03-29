@@ -11,7 +11,6 @@ import tensorflow as tf
 import glob
 import AudioConverter as ac
 import soundfile as sf
-from pyAudioAnalysis import audioBasicIO
 import util
 
 def train_mfcc_nn(path_speech, path_music, max_duration):
@@ -154,7 +153,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 def read_mfcc(wav_file_path):
     (rate, sig) = wav.read(wav_file_path)
     # Convert signal to mono
-    sig = audioBasicIO.stereo2mono(sig)
+    sig = util.stereo2mono(sig)
     mfcc_feat = mfcc(sig, rate, nfft=768, winlen=0.025)
     d_mfcc_feat = delta(mfcc_feat, 2)
     # fbank_feat = logfbank(sig, rate)

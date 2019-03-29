@@ -14,7 +14,6 @@ from scipy.fftpack import fft
 from scipy.signal import stft
 
 import util
-from pyAudioAnalysis import audioBasicIO
 import AudioConverter as ac
 
 """
@@ -67,7 +66,7 @@ def calculate_cfa(file):
     sig = np.array(signal)
 
     # Convert signal to mono
-    sig = audioBasicIO.stereo2mono(sig)
+    sig = util.stereo2mono(sig)
 
     # Apply noise gate
     noise_gate_level = 0.5
