@@ -29,6 +29,8 @@ import threading
 import urllib.request
 import time
 
+# instantiate
+config = configparser.ConfigParser()
 
 def check_duration(value):
     try:
@@ -56,13 +58,13 @@ def read_settings():
     settings_base_dir += os.sep
     config = configparser.ConfigParser()
     try:
-        config.read_file(open('radiorec_settings.ini'))
+        config.read('radiorec_settings.ini')
     except FileNotFoundError as err:
         print(str(err))
         print('Please copy/create the settings file to/in the appropriate '
               'location.')
         sys.exit()
-    return dict(config.items())
+    return config
 
 
 def record_worker(stoprec, streamurl, target_dir, args):
@@ -93,9 +95,11 @@ def record_worker(stoprec, streamurl, target_dir, args):
             target.write(conn.read(1024))
 
 
-def my_record_worker(stoprec, streamurl, target_dir, linux_public, fileName, duration, args):
+def my_record_worker(stoprec, station, target_dir, linux_public, fileName, duration, args):
+    settings = read_settings()
+    url = settings.get('STATIONS', station)
     #cur_dt_string = datetime.datetime.now().strftime('%Y-%m-%dT%H_%M_%S')
-    conn = urllib.request.urlopen(streamurl)
+    conn = urllib.request.urlopen(url)
     filename = target_dir + os.sep + fileName
     content_type = conn.getheader('Content-Type')
     if content_type == 'audio/mpeg':

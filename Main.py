@@ -22,10 +22,10 @@ for p in Path("data/test").glob("stream*.mp3"):
     p.unlink()
 
 # init
-url = 'https://fm4shoutcast.sf.apa.at'
-url = 'http://c14000-l.i.core.cdn.streamfarm.net/14000cina/live/3212erf_96/live_de_96.mp3'
 mixer.init()
 i = 0
+
+station = "radiovorarlberg"
 
 
 # persist classifier
@@ -58,7 +58,7 @@ else:
 
 while i < 10:
     currentFile = "stream_" + str(i)
-    radiorec.my_record(url, 3.0, currentFile)
+    radiorec.my_record(station, 3.0, currentFile)
     path = "data/test/" + currentFile + ".mp3"
 
     # Convert streamed mp3 to wav
