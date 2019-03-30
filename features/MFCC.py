@@ -71,6 +71,7 @@ def train_mfcc_knn(path_speech, path_music, max_duration):
     return [clf, pca]
 
 def calculate_mfccs(path_speech, path_music, max_duration):
+
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
     sp_mfccs = []

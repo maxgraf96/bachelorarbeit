@@ -1,9 +1,12 @@
 import glob
 from time import sleep
 
+import numpy as np
 import Output
 from pathlib import Path
 from pygame import mixer
+
+import Processing
 import radiorec
 import util
 from features import MFCC, CFA, ABL
@@ -19,7 +22,7 @@ for p in Path("data/test").glob("stream*.mp3"):
 mixer.init()
 i = 0
 
-station = "erfplus"
+station = "fm4"
 
 
 # persist classifier
@@ -62,11 +65,14 @@ while i < 30:
     # MFCC classification
     #current_mfcc = MFCC.read_mfcc(wav_path)
 
+    # Calculate the spectrogram once => cfa and abl use the same spectrogram
+    spectrogram = Processing.cfa_abl_preprocessing(path)
+
     # CFA classification
-    #cfa = CFA.calculate_cfa(path)
+    cfa = CFA.calculate_cfa(path, np.copy(spectrogram))  # np.copy() because numpy arrays are mutable
 
     # ABL classification
-    abl = ABL.calculate_abl(path)
+    abl = ABL.calculate_abl(path, spectrogram)
 
     # Output for MFCC
     # current_duration = util.get_wav_duration(wav_path)
@@ -75,16 +81,17 @@ while i < 30:
     # thread.join()
 
     # Output for CFA
-    # cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
-    # cfa_thread.start()
-    # cfa_thread.join()
+    cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
+    cfa_thread.start()
+    cfa_thread.join()
 
     # play audio stream
     mixer.music.load(wav_path[:-4] + "_11_kHz.wav")
     mixer.music.play()
+
+    # Fadeout after 3 seconds, this call also blocks. This makes sure that the current file is always played to the end
     mixer.music.fadeout(3000)
 
-    #sleep(.9)
     i += 1
 
 

@@ -26,4 +26,4 @@ def print_cfa(cfa, threshold=1.24):
         res = "Speech"
     else:
         res = "Music"
-    print(res + ", value = " + str(round(cfa, 2)))
+    print("CFA: " + str(round(cfa, 2)) + " - " + res)
