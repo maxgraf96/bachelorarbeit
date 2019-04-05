@@ -1,7 +1,7 @@
 import glob
 
 import numpy as np
-import scipy
+import scipy.signal
 import scipy.io.wavfile as wav
 
 import AudioConverter as ac
