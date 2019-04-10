@@ -81,7 +81,7 @@ def main(station):
         # thread.join()
 
         # Output for CFA
-        cfa_thread = threading.Thread(target=Output.print_cfa(cfa), args=(10,))
+        cfa_thread = threading.Thread(target=Output.print_cfa(cfa, 1.1), args=(10,))
         cfa_thread.start()
         cfa_thread.join()
 
