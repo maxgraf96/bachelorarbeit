@@ -155,7 +155,7 @@ def read_mfcc(wav_file_path):
     (rate, sig) = wav.read(wav_file_path)
     # Convert signal to mono
     sig = util.stereo2mono(sig)
-    mfcc_feat = mfcc(sig, rate, nfft=768, winlen=0.025)
+    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025)
     d_mfcc_feat = delta(mfcc_feat, 2)
     # fbank_feat = logfbank(sig, rate)
 

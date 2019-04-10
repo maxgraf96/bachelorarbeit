@@ -7,7 +7,6 @@ import scipy.io.wavfile as wav
 import AudioConverter as ac
 import util
 
-
 def cfa_abl_preprocessing(file):
     # Read the audio file and cut off all frequencies > 11kHz
     # Check if a converted wav is present before converting to 11kHz wav

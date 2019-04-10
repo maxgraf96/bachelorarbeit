@@ -2,65 +2,108 @@ import sklearn.metrics
 
 import Processing
 import util
-from features import ABL, CFA
+from features import GRAD, CFA
 import sklearn.metrics
+from tqdm import tqdm
 
 import Processing
 import util
-from features import ABL
+from features import GRAD
 
 labels = [0, 1]
 target_names = ["Speech", "Music"]
+ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
 def main():
-    # Prepare random subset of data for abl and cfa
     data = []
     y_true = []
-    for i in range(20):
-        data.append(util.get_random_file("wav", "data/speech"))
+
+    print("Preparing random subset of training data...")
+    # Prepare random subset of data for abl and cfa
+    for i in tqdm(range(100)):
+        s_file = util.get_random_file("wav", ext_hdd_path + "data/speech")
+        # If file already in data pick new one
+        while s_file in data or s_file[:-4] + "_11_kHz.wav" in data:
+            s_file = util.get_random_file("wav", ext_hdd_path + "data/speech")
+        data.append(s_file)
         y_true.append(0)
 
-        data.append(util.get_random_file("wav", "data/music"))
+        m_file = util.get_random_file("wav", ext_hdd_path + "data/music")
+        while m_file in data or m_file[:-4] + "_11_kHz.wav" in data:
+            m_file = util.get_random_file("wav", ext_hdd_path + "data/music")
+        data.append(m_file)
         y_true.append(1)
 
-    # evaluate_abl(data, y_true, -1500)
-    evaluate_cfa(data, y_true, 1.1)
+    print("Evaluating GRAD Feature...")
+    # evaluate_grad(data, y_true, [-1700, -1600, -1500, -1400, -1300, -1200])
+    evaluate_grad(data, y_true, [-1000, -900, -800, -700, -600, -500, -400, -300, -200, -100, -50, -20, -10])
 
-def evaluate_abl(x_tst, y_true, threshold):
-    y_pred = []
+    # print("Evaluating CFA Feature...")
+    # evaluate_cfa(data, y_true, thresholds=[0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2])
 
-    for file in x_tst:
+def evaluate_grad(x_tst, y_true, thresholds):
+    y_grads = []
+    for file in tqdm(x_tst):
+        #print("Current file: " + file)
+
         # Calculate the spectrogram
         spectrogram = Processing.cfa_abl_preprocessing(file)
 
-        # ABL classification
-        abl = ABL.calculate_abl(file, spectrogram)
-        if abl > threshold:
-            y_pred.append(0)  # Speech
-        else:
-            y_pred.append(1)  # Music
+        # GRAD classification
+        grad = GRAD.calculate_grad(file, spectrogram)
+        y_grads.append(grad)
 
-    report = sklearn.metrics.classification_report(y_true, y_pred, labels, target_names)
-    print(report)
+    for threshold in thresholds:
+        print("Evaluation for GRAD with threshold " + str(threshold) + ":")
 
-def evaluate_cfa(x_tst, y_true, threshold=1.24):
-    y_pred = []
+        y_pred = []
+        for grad_value in y_grads:
+            if grad_value > threshold:
+                y_pred.append(0)  # Speech
+            else:
+                y_pred.append(1)  # Music
 
-    for file in x_tst:
+        report = sklearn.metrics.classification_report(y_true, y_pred, labels, target_names)
+        confusion_matrix = sklearn.metrics.confusion_matrix(y_true, y_pred, labels)
+
+        print("Report")
+        print(report)
+
+        print("Confusion Matrix")
+        print(confusion_matrix)
+        print("----------------------------------------------------------------- \n\n")
+
+def evaluate_cfa(x_tst, y_true, thresholds):
+    y_cfas = []
+    for file in tqdm(x_tst):
+        #print("Current file: " + file)
+
         # Calculate the spectrogram
         spectrogram = Processing.cfa_abl_preprocessing(file)
 
         # CFA classification
         cfa = CFA.calculate_cfa(file, spectrogram)
-        if cfa < threshold:
-            y_pred.append(0)  # Speech
-        else:
-            y_pred.append(1)  # Music
+        y_cfas.append(cfa)
 
-        print("Current file: " + file)
+    for threshold in thresholds:
+        print("Evaluation for CFA with threshold " + str(threshold) + ":")
 
-    report = sklearn.metrics.classification_report(y_true, y_pred, labels, target_names)
-    print(report)
+        y_pred = []
+        for cfa_value in y_cfas:
+            if cfa_value < threshold:
+                y_pred.append(0)  # Speech
+            else:
+                y_pred.append(1)  # Music
+
+        report = sklearn.metrics.classification_report(y_true, y_pred, labels, target_names)
+        confusion_matrix = sklearn.metrics.confusion_matrix(y_true, y_pred, labels)
+
+        print("Report")
+        print(report)
+
+        print("Confusion Matrix")
+        print(confusion_matrix)
+        print("----------------------------------------------------------------- \n\n")
 
 
 main()

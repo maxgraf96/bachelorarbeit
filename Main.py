@@ -1,4 +1,6 @@
 import glob
+import sys
+import time
 from time import sleep
 
 import numpy as np
@@ -9,12 +11,12 @@ from pygame import mixer
 import Processing
 import radiorec
 import util
-from features import MFCC, CFA, ABL
+from features import MFCC, CFA, GRAD
 import AudioConverter as ac
 import tensorflow as tf
 import threading
-import Controls
 
+cl_arguments = sys.argv[1:]
 ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
 def main(station):
@@ -48,7 +50,7 @@ def main(station):
         # [clf, pca] = load('clf.joblib')
 
         # Tensorflow nn
-        # clf_mfcc = tf.keras.models.load_model('clf.h5')
+        clf_mfcc = tf.keras.models.load_model('clf.h5')
 
         # clf_cfa = tf.keras.models.load_model('clf_cfa.h5')
 
@@ -57,53 +59,57 @@ def main(station):
 
     i = 0
     while i < 30:
-        currentFile = "stream_" + str(i)
-        radiorec.my_record(station, 3.0, currentFile)
-        path = "data/test/" + currentFile + ".mp3"
+        current_file = "stream_" + str(i)
+        radiorec.my_record(station, 3.0, current_file)
+        path = "data/test/" + current_file + ".mp3"
+
+        print("Current: " + current_file)
 
         # Convert streamed mp3 to wav
         wav_path = ac.mp3_to_wav(path)
 
-        # MFCC classification
-        # current_mfcc = MFCC.read_mfcc(wav_path)
+        # Use features specified in command line arguments
+        if "mfcc" in cl_arguments:
+            # MFCC classification
+            current_mfcc = MFCC.read_mfcc(wav_path)
+            # Output for MFCC
+            current_duration = util.get_wav_duration(wav_path)
+            thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, 9), args=(10,))
+            thread.start()
+            thread.join()
 
-        # Calculate the spectrogram once => cfa and abl use the same spectrogram
-        spectrogram = Processing.cfa_abl_preprocessing(path)
+        if "cfa" or "grad" in cl_arguments:
+            # Calculate the spectrogram once => cfa and abl use the same spectrogram
+            spectrogram = Processing.cfa_abl_preprocessing(path)
 
-        # CFA classification
-        cfa = CFA.calculate_cfa(path, np.copy(spectrogram))  # np.copy() because numpy arrays are mutable
+        if "cfa" in cl_arguments:
+            # CFA classification
+            cfa = CFA.calculate_cfa(path, np.copy(spectrogram))  # np.copy() because numpy arrays are mutable
 
-        # ABL classification and output
-        abl = ABL.calculate_abl(path, spectrogram)
+            # Output
+            cfa_thread = threading.Thread(target=Output.print_cfa(cfa, threshold=1.24), args=(10,))
+            cfa_thread.start()
+            cfa_thread.join()
 
-        # Output for MFCC
-        # current_duration = util.get_wav_duration(wav_path)
-        # thread = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, 9), args=(10,))
-        # thread.start()
-        # thread.join()
-
-        # Output for CFA
-        cfa_thread = threading.Thread(target=Output.print_cfa(cfa, 1.1), args=(10,))
-        cfa_thread.start()
-        cfa_thread.join()
+        if "grad" in cl_arguments:
+            # GRAD classification and output
+            grad = GRAD.calculate_grad(path, spectrogram)
+            grad_thread = threading.Thread(target=Output.print_grad(grad, threshold=-120))
+            grad_thread.start()
+            grad_thread.join()
 
         # play audio stream
-        mixer.music.load(wav_path[:-4] + "_11_kHz.wav")
+        mixer.music.load(wav_path)
         mixer.music.play()
 
         # Fadeout after 3 seconds, this call also blocks. This makes sure that the current file is always played to the end
-        mixer.music.fadeout(3000)
+        #mixer.music.fadeout(1000)
+
+        sleep(1)
+        print()
 
         i += 1
 
+
 station = "fm4"
-
-#key_thread = threading.Thread(target=Controls.start_listener(), args=(10,))
-main_thread = threading.Thread(target=main(station), args=(10,))
-
-main_thread.start()
-#key_thread.start()
-
-main_thread.join()
-#key_thread.join()
-
+main(station)

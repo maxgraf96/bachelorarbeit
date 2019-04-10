@@ -10,10 +10,10 @@ def get_wav_duration(file):
     return len(f) / f.samplerate
 
 def stereo2mono(x):
-    '''
+    """
         This function converts the input signal
         (stored in a numpy array) to MONO (if it is STEREO)
-    '''
+    """
     if isinstance(x, int):
         return -1
     if x.ndim == 1:
