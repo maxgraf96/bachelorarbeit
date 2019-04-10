@@ -15,6 +15,8 @@ import tensorflow as tf
 import threading
 import Controls
 
+ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
+
 def main(station):
 
     # clear previous streams
@@ -33,10 +35,10 @@ def main(station):
         # dump([clf, pca], 'clf.joblib')
 
         # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-        clf_mfcc, pca = MFCC.train_mfcc_nn("data/speech", "data/music", 1000)
+        clf_mfcc, pca = MFCC.train_mfcc_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 1000)
         clf_mfcc.save('clf.h5')
 
-        # clf_cfa = CFA.train_cfa_nn("data/speech", "data/music", 30)
+        # clf_cfa = CFA.train_cfa_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 30)
         # clf_cfa.save('clf_cfa.h5')
 
 
@@ -93,19 +95,6 @@ def main(station):
         mixer.music.fadeout(3000)
 
         i += 1
-
-    '''
-    result = aT.fileClassification(path, "svmSMtemp", "svm")
-
-    music_speech_tuple = result[1]
-    if music_speech_tuple[0] > music_speech_tuple[1]:
-        renamed = "data/test/" + currentFile + "_mu.mp3"
-        #os.rename(path, renamed)
-    else:
-        renamed = "data/test/" + currentFile + "_sp.mp3"
-        #os.rename(path, renamed)
-
-    '''
 
 station = "fm4"
 
