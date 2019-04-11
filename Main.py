@@ -28,34 +28,26 @@ def main(station):
     # init
     mixer.init()
 
-    # persist classifier
-    # if len(glob.glob("clf.joblib")) < 1:
+    # persist classifiers
+    # MFCC
     if len(glob.glob("clf.h5")) < 1:
         print("Saving model...")
-        # kNN
-        # clf, pca = MFCC.train_mfcc_knn("data/speech", "data/music", 3000)
-        # dump([clf, pca], 'clf.joblib')
-
         # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
         clf_mfcc, pca = MFCC.train_mfcc_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 1000)
         clf_mfcc.save('clf.h5')
-
-        # clf_cfa = CFA.train_cfa_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 30)
-        # clf_cfa.save('clf_cfa.h5')
-
-
     else:
-        print("Restoring model...")
-        # kNN
-        # [clf, pca] = load('clf.joblib')
-
-        # Tensorflow nn
+        print("Restoring models...")
+        # MFCC Tensorflow nn
         clf_mfcc = tf.keras.models.load_model('clf.h5')
 
-        # clf_cfa = tf.keras.models.load_model('clf_cfa.h5')
+    # GRAD
+    if len(glob.glob("clf_grad.h5")) < 1:
+        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 1000)
+        clf_grad.save('clf_grad.h5')
+    else:
+        # GRAD Tensorflow nn
+        clf_grad = tf.keras.models.load_model('clf_grad.h5')
 
-    # cfa = CFA.calculate_cfas("data/speech", "data/music", 10)
-    # trn, lbls = ABL.calculate_abls("data/speech", "data/music", 20)
 
     i = 0
     while i < 30:
@@ -80,7 +72,7 @@ def main(station):
 
         if "cfa" or "grad" in cl_arguments:
             # Calculate the spectrogram once => cfa and abl use the same spectrogram
-            spectrogram = Processing.cfa_abl_preprocessing(path)
+            spectrogram = Processing.cfa_grad_preprocessing(path)
 
         if "cfa" in cl_arguments:
             # CFA classification
@@ -94,7 +86,7 @@ def main(station):
         if "grad" in cl_arguments:
             # GRAD classification and output
             grad = GRAD.calculate_grad(path, spectrogram)
-            grad_thread = threading.Thread(target=Output.print_grad(grad, threshold=-120))
+            grad_thread = threading.Thread(target=Output.print_grad(grad, clf_grad))
             grad_thread.start()
             grad_thread.join()
 

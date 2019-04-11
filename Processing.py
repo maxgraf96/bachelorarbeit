@@ -7,7 +7,13 @@ import scipy.io.wavfile as wav
 import AudioConverter as ac
 import util
 
-def cfa_abl_preprocessing(file):
+def cfa_grad_filerate_preprocessing(file):
+    """
+    Filerate preprocessing for CFA and GRAD
+    :param file: The file to preprocess. The function checks if an 11kHz file exists and if not, converts the given file
+    to an 11kHz MONO file.
+    :return: the processed file or the original (11kHz file if it already exists)
+    """
     # Read the audio file and cut off all frequencies > 11kHz
     # Check if a converted wav is present before converting to 11kHz wav
     if ".mp3" in file:
@@ -20,6 +26,12 @@ def cfa_abl_preprocessing(file):
         file = ac.wav_to_11_khz(file)
     else:
         file = converted_path
+
+    return file
+
+def cfa_grad_preprocessing(file):
+    file = cfa_grad_filerate_preprocessing(file)
+
     (rate, signal) = wav.read(file)
     sig = np.array(signal)
 

@@ -16,7 +16,7 @@ def calculate_cfa(file, spec=None):
 
     # Get the spectrogram
     if spec is None:
-        spec = Processing.cfa_abl_preprocessing(file)
+        spec = Processing.cfa_grad_preprocessing(file)
 
     # N = 21
     # for j in range(spec.shape[0]):

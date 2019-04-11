@@ -1,6 +1,6 @@
 from time import sleep
 import numpy as np
-from features import MFCC, CFA
+from features import MFCC, CFA, GRAD
 
 
 def print_mfcc(mfcc, clf, duration, splits=9):
@@ -33,6 +33,19 @@ def print_cfa(cfa, threshold=1.24):
     print("CFA: " + str(round(cfa, 2)) + " - " + res)
 
 
-def print_grad(grad, threshold=-1000):
-    result = "Speech" if grad > threshold else "Music"
-    print("Gradient: " + str(round(grad, 2)) + " - " + result)
+def print_grad(grads, clf):
+    ones = 0
+    zeroes = 0
+    for grad in grads:
+        result = GRAD.predict_nn(clf, grad)
+        if result[0][0] > result[0][1]:
+            zeroes += 1
+        else:
+            ones += 1
+
+    else:
+        result = ones / (ones + zeroes)
+    print("GRAD Music: ", result)
+
+    # result = "Speech" if grad > threshold else "Music"
+    # print("Gradient: " + str(round(grad, 2)) + " - " + result)

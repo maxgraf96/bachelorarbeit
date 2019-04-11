@@ -20,7 +20,7 @@ def main():
 
     print("Preparing random subset of training data...")
     # Prepare random subset of data for abl and cfa
-    for i in tqdm(range(100)):
+    for i in tqdm(range(10)):
         s_file = util.get_random_file("wav", ext_hdd_path + "data/speech")
         # If file already in data pick new one
         while s_file in data or s_file[:-4] + "_11_kHz.wav" in data:
@@ -36,7 +36,7 @@ def main():
 
     print("Evaluating GRAD Feature...")
     # evaluate_grad(data, y_true, [-1700, -1600, -1500, -1400, -1300, -1200])
-    evaluate_grad(data, y_true, [-1000, -900, -800, -700, -600, -500, -400, -300, -200, -100, -50, -20, -10])
+    evaluate_grad(data, y_true, [-50, -40, -30, -25, -20, -15, -10])
 
     # print("Evaluating CFA Feature...")
     # evaluate_cfa(data, y_true, thresholds=[0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2])
@@ -47,7 +47,7 @@ def evaluate_grad(x_tst, y_true, thresholds):
         #print("Current file: " + file)
 
         # Calculate the spectrogram
-        spectrogram = Processing.cfa_abl_preprocessing(file)
+        spectrogram = Processing.cfa_grad_preprocessing(file)
 
         # GRAD classification
         grad = GRAD.calculate_grad(file, spectrogram)
@@ -79,7 +79,7 @@ def evaluate_cfa(x_tst, y_true, thresholds):
         #print("Current file: " + file)
 
         # Calculate the spectrogram
-        spectrogram = Processing.cfa_abl_preprocessing(file)
+        spectrogram = Processing.cfa_grad_preprocessing(file)
 
         # CFA classification
         cfa = CFA.calculate_cfa(file, spectrogram)
