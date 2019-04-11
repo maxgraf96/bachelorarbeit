@@ -18,11 +18,12 @@ def calculate_grad(file, spec=None):
     if spec is None:
         spec = Processing.cfa_grad_preprocessing(file)
 
-    # "EQ" the primary voice frequencies out
-    #spec = np.delete(spec, np.s_[27:280], axis=0)
+    # Remove frequencies not primarily in the voice spectrum
+    #spec = np.delete(spec, np.s_[0:27], axis=0)
+    #spec = np.delete(spec, np.s_[280-27:], axis=0)
 
     # Create blocks consisting of 10 frames each
-    no_blocks = math.ceil(spec.shape[1] / (spec.shape[1] / 5))
+    no_blocks = math.ceil(spec.shape[1] / 10)
     gradients = []
     for step in range(no_blocks):
         start = step * 10
@@ -37,13 +38,8 @@ def calculate_grad(file, spec=None):
 
         gradient = np.real(np.gradient(block))
 
-        # try:
-        # except:
-        #     print(block)
-        #     continue
-
         if len(gradient) > 1:
-            gradient = gradient[1]
+            gradient = gradient[0]
         # gradient = np.sum(gradient, axis=1)
         # gradient = np.sum(gradient) / block.shape[0]
         # gradient = gradient.real
@@ -62,13 +58,18 @@ def calculate_grads(path_speech, path_music, max_grads):
     sp_grads = []
     no_grads = 0
     file = 0
+    processed_files = []
     while no_grads < max_grads:
+        if file in processed_files:
+            file += 1
+            continue
         speech_files[file] = Processing.cfa_grad_filerate_preprocessing(speech_files[file])
         print(str(file) + " of " + str(len(speech_files)) + " - processing " + str(speech_files[file]))
         gradients = calculate_grad(speech_files[file])
         sp_grads.extend(gradients)
         no_grads += len(gradients)
         file += 1
+        processed_files.append(file)
 
 
     print("Processed " + str(file) + " speech files.")
@@ -86,13 +87,18 @@ def calculate_grads(path_speech, path_music, max_grads):
 
     no_grads = 0
     file = 0
+    processed_files = []
     while no_grads < max_grads:
+        if file in processed_files:
+            file += 1
+            continue
         music_files[file] = Processing.cfa_grad_filerate_preprocessing(music_files[file])
         print(str(file) + " of " + str(len(music_files)) + " - processing " + str(music_files[file]))
         gradients = calculate_grad(music_files[file])
         mu_grads.extend(gradients)
         no_grads += len(gradients)
         file += 1
+        processed_files.append(file)
 
     print("Processed " + str(file) + " music files.")
 
@@ -125,6 +131,9 @@ def train_grad_nn(path_speech, path_music, max_grads):
     clf = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(input_shape=(1, 513)),
         tf.keras.layers.Dense(128, activation=tf.nn.relu),
+        tf.keras.layers.Dense(64, activation=tf.nn.relu),
+        tf.keras.layers.Dense(32, activation=tf.nn.relu),
+        tf.keras.layers.Dense(16, activation=tf.nn.relu),
         tf.keras.layers.Dense(2, activation=tf.nn.softmax)
     ])
     clf.compile(optimizer='adam',
@@ -132,7 +141,7 @@ def train_grad_nn(path_speech, path_music, max_grads):
                   metrics=['accuracy'])
 
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
-    clf.fit(trn, lbls, epochs=5)
+    clf.fit(trn, lbls, epochs=15)
 
     return clf#, pca
 

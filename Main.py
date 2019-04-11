@@ -42,7 +42,7 @@ def main(station):
 
     # GRAD
     if len(glob.glob("clf_grad.h5")) < 1:
-        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 1000)
+        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 5000)
         clf_grad.save('clf_grad.h5')
     else:
         # GRAD Tensorflow nn
@@ -103,5 +103,5 @@ def main(station):
         i += 1
 
 
-station = "fm4"
+station = "oe3"
 main(station)
