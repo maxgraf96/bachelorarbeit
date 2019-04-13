@@ -28,6 +28,9 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
     clf = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(input_shape=(1, 26)),
         tf.keras.layers.Dense(128, activation=tf.nn.relu),
+        tf.keras.layers.Dense(64, activation=tf.nn.relu),
+        tf.keras.layers.Dense(32, activation=tf.nn.relu),
+        tf.keras.layers.Dense(16, activation=tf.nn.relu),
         tf.keras.layers.Dense(2, activation=tf.nn.softmax)
     ])
     clf.compile(optimizer='adam',
@@ -35,7 +38,7 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
                   metrics=['accuracy'])
 
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
-    clf.fit(trn, lbls, epochs=3)
+    clf.fit(trn, lbls, epochs=5)
 
     return clf, pca
 
@@ -71,18 +74,37 @@ def train_mfcc_knn(path_speech, path_music, max_duration):
     return [clf, pca]
 
 def calculate_mfccs(path_speech, path_music, max_duration):
-
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
+    # Remove 11 kHz files from list
+    speech_files = [file for file in speech_files if "11_kHz.wav" not in file]
+    processed_files = []
     sp_mfccs = []
     acc_duration = 0  # The accumulated length of processed files in seconds
     for i in range(len(speech_files)):
+        if speech_files[i] in processed_files:
+            continue
+        # Convert speech file to 16 kHz if necessary
+        if "16_kHz.wav" not in speech_files[i] and speech_files[i][:-4] + "_16_kHz.wav" not in speech_files:
+            processed_files.append(speech_files[i])  # Also append unconverted file so the file isn't processed twice
+            print("Converting ", speech_files[i], " to 16kHz wav...")
+            speech_files[i] = ac.wav_to_16_khz(speech_files[i])
+
+        # Continue if the file was already converted before
+        elif "16_kHz.wav" not in speech_files[i] and speech_files[i][:-4] + "_16_kHz.wav" in speech_files:
+            continue
+
         duration = util.get_wav_duration(speech_files[i])
+
+        # Break if the duration of processed files exceeds the maximum specified duration
         if acc_duration + duration > max_duration:
             break
         acc_duration += duration
 
         print(str(i) + " of " + str(len(speech_files)) + " - processing " + str(speech_files[i]))
+        # Append the current file to the list of processed files in order to avoid double processing of the same file
+        processed_files.append(speech_files[i])
+        # Read the current MFCCs
         current_mfccs = read_mfcc(speech_files[i])
         for j in range(len(current_mfccs)):
             sp_mfccs.append(current_mfccs[j])
@@ -96,7 +118,6 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
     # -------------------------- Music --------------------------
     mp3s = glob.glob(path_music + "/**/*.mp3", recursive=True)  # list of mp3s in given path
-
     # convert mp3s to wavs
     for i in range(len(mp3s)):
         # Only convert if the converted file doesn't exist yet
@@ -105,20 +126,37 @@ def calculate_mfccs(path_speech, path_music, max_duration):
             continue
 
         print("Converting " + str(mp3s[i]) + " to wav.")
-        ac.mp3_to_wav(mp3s[i])
+        ac.mp3_to_16_khz_wav(mp3s[i])
 
     # process music wavs
     wavs = glob.glob(path_music + "/**/*.wav", recursive=True)
+    # Remove 11 kHz files from list
+    wavs = [file for file in wavs if "11_kHz.wav" not in file]
+    processed_files = []
     wav_mfccs = []
     acc_duration = 0  # reset processed length
     retries = 0  # retries for the skipping of files that are too long
     for i in range(len(wavs)):
+        if wavs[i] in processed_files:
+            continue
+
+        # Convert wav file to 16 kHz if necessary
+        if "16_kHz.wav" not in wavs[i] and wavs[i][:-4] + "_16_kHz.wav" not in wavs:
+            processed_files.append(wavs[i])  # Also append unconverted file so the file isn't processed twice
+            print("Converting ", wavs[i], " to 16kHz wav...")
+            wavs[i] = ac.wav_to_16_khz(wavs[i])
+
+        # Continue if the file was already converted before
+        elif "16_kHz.wav" not in wavs[i] and wavs[i][:-4] + "_16_kHz.wav" in wavs:
+            continue
+
         duration = util.get_wav_duration(speech_files[i])
         if acc_duration + duration > max_duration:
             break
         acc_duration += duration
 
         print(str(i) + " of " + str(len(wavs)) + " - processing " + str(wavs[i]))
+        processed_files.append(wavs[i])
         current_mfccs = read_mfcc(wavs[i])
 
         # Only append the MFCCs if the number of current MFCCs + the number of MFCCs in the currently processed file
@@ -157,6 +195,5 @@ def read_mfcc(wav_file_path):
     sig = util.stereo2mono(sig)
     mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025)
     d_mfcc_feat = delta(mfcc_feat, 2)
-    # fbank_feat = logfbank(sig, rate)
 
     return np.append(mfcc_feat, d_mfcc_feat, axis=1)

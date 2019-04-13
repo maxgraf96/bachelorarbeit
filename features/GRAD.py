@@ -19,8 +19,8 @@ def calculate_grad(file, spec=None):
         spec = Processing.cfa_grad_preprocessing(file)
 
     # Remove frequencies not primarily in the voice spectrum
-    #spec = np.delete(spec, np.s_[0:27], axis=0)
-    #spec = np.delete(spec, np.s_[280-27:], axis=0)
+    spec = np.delete(spec, np.s_[27:], axis=0)
+    spec = np.delete(spec, np.s_[0:6], axis=0)
 
     # Create blocks consisting of 10 frames each
     no_blocks = math.ceil(spec.shape[1] / 10)
@@ -55,6 +55,8 @@ def calculate_grads(path_speech, path_music, max_grads):
 
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
+    # Remove 16 kHz files (from MFCC processing) from list
+    speech_files = [file for file in speech_files if "16_kHz.wav" not in file]
     sp_grads = []
     no_grads = 0
     file = 0
@@ -83,6 +85,8 @@ def calculate_grads(path_speech, path_music, max_grads):
         return
 
     music_files = glob.glob(path_music + "/**/*.wav", recursive=True)  # list of files in given path
+    # Remove 16 kHz files (from MFCC processing) from list
+    music_files = [file for file in music_files if "16_kHz.wav" not in file]
     mu_grads = []
 
     no_grads = 0
@@ -121,19 +125,13 @@ def train_grad_nn(path_speech, path_music, max_grads):
     # Calculate GRADs
     trn, lbls = calculate_grads(path_speech, path_music, max_grads)
 
-    # Preprocessing
-    #trn = sklearn.preprocessing.scale(trn, axis=1)
-    #pca = PCA(n_components=9)
-    #principal_components = pca.fit_transform(trn)
-
     # Classifier fitting
     # Tensorflow nn
     clf = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(1, 513)),
-        tf.keras.layers.Dense(128, activation=tf.nn.relu),
-        tf.keras.layers.Dense(64, activation=tf.nn.relu),
-        tf.keras.layers.Dense(32, activation=tf.nn.relu),
-        tf.keras.layers.Dense(16, activation=tf.nn.relu),
+        tf.keras.layers.Flatten(input_shape=(1, 21)),
+        tf.keras.layers.Dense(21, activation=tf.nn.relu),
+        tf.keras.layers.Dense(11, activation=tf.nn.relu),
+        tf.keras.layers.Dense(5, activation=tf.nn.relu),
         tf.keras.layers.Dense(2, activation=tf.nn.softmax)
     ])
     clf.compile(optimizer='adam',
@@ -143,7 +141,7 @@ def train_grad_nn(path_speech, path_music, max_grads):
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
     clf.fit(trn, lbls, epochs=15)
 
-    return clf#, pca
+    return clf
 
 
 def predict_nn(clf, grad_in):

@@ -3,7 +3,7 @@ import numpy as np
 from features import MFCC, CFA, GRAD
 
 
-def print_mfcc(mfcc, clf, duration, splits=9):
+def print_mfcc(mfcc, clf, duration, result_mfcc, splits=9):
     """
     Splits the n seconds (coming from duration) into 'splits' bundles each containing the information for n/splits seconds
     """
@@ -22,18 +22,23 @@ def print_mfcc(mfcc, clf, duration, splits=9):
         # print("Music: " + str(round(ones / len(result), 4)))
         #print()
         # sleep(sleep_duration)
-    print("MFCC Music: ", str(round(total / splits, 4)))
+    result = round(total / splits, 4)
+    result_mfcc[0] = result
+    print("MFCC Music: ", str(result))
 
 
-def print_cfa(cfa, threshold=1.24):
+def print_cfa(cfa, result_cfa, threshold=1.24):
     if cfa < threshold:
         res = "Speech"
     else:
         res = "Music"
-    print("CFA: " + str(round(cfa, 2)) + " - " + res)
+
+    result = round(cfa, 4)
+    result_cfa[0] = result
+    print("CFA: " + str(result) + " - " + res)
 
 
-def print_grad(grads, clf):
+def print_grad(grads, clf, result_grad):
     ones = 0
     zeroes = 0
     for grad in grads:
@@ -45,7 +50,6 @@ def print_grad(grads, clf):
 
     else:
         result = ones / (ones + zeroes)
-    print("GRAD Music: ", result)
 
-    # result = "Speech" if grad > threshold else "Music"
-    # print("Gradient: " + str(round(grad, 2)) + " - " + result)
+    result_grad[0] = result
+    print("GRAD Music: ", result)
