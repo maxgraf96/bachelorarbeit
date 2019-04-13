@@ -51,3 +51,15 @@ def mp3_to_11_khz_wav(src):
     sound.export(converted, format="wav")
     return converted
 
+def mp3_to_22_khz_wav(src):
+    """
+    Takes a path to an mp3 file and converts it to a 22kHz STEREO wav file. The new filename is filename_22_kHz.wav
+    :param src: The source file
+    :return: The converted wav file
+    """
+
+    sound = AudioSegment.from_mp3(src)
+    sound = sound.set_frame_rate(22100)
+    converted = src[:-4] + "_22_kHz.wav"
+    sound.export(converted, format="wav")
+    return converted

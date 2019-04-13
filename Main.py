@@ -16,7 +16,7 @@ import AudioConverter as ac
 import tensorflow as tf
 import threading
 
-station = "oe1"
+station = "oe3"
 cl_arguments = sys.argv[1:]
 ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
@@ -119,7 +119,7 @@ def main():
         if mfcc > 0.5:
             final_result += 1
             if mfcc > 0.8:
-                final_result += 1
+                final_result += 2
         else:
             final_result -= 1
 
@@ -157,11 +157,12 @@ def main():
         print("Successive speech blocks: ", succ_speech)
 
         # Play audio stream
-        mixer.music.load(wav_path)
+        mixer.music.load(ac.mp3_to_22_khz_wav(path))
         mixer.music.play()
 
         # Block for 1s
-        sleep(1)
+        sleep(1.5)
+        # mixer.music.fadeout(1500)
         print()
         i += 1
 
