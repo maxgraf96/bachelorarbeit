@@ -63,3 +63,15 @@ def mp3_to_22_khz_wav(src):
     converted = src[:-4] + "_22_kHz.wav"
     sound.export(converted, format="wav")
     return converted
+
+def wav_to_22_khz(src):
+    """
+       Takes a path to a wav file and converts it to a wav file with the same name and sampling rate of 22050 kHz.
+       :param src: The source file
+       :return: The converted wav file path
+       """
+    sound = AudioSegment.from_wav(src)
+    sound = sound.set_frame_rate(22050)
+    converted = src[:-4] + "_22_kHz.wav"
+    sound.export(converted, format="wav")
+    return converted

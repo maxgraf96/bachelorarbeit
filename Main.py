@@ -20,11 +20,15 @@ station = "oe3"
 cl_arguments = sys.argv[1:]
 ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
+def clear_streams():
+    # clear previous streams
+    for p in Path("data/test").glob("*"):
+        p.unlink()
+
 def main():
 
-    # clear previous streams
-    for p in Path("data/test").glob("stream*.mp3"):
-        p.unlink()
+    # Clear previous streams
+    clear_streams()
 
     # init
     mixer.init()
@@ -60,6 +64,9 @@ def main():
 
     # CFA threshold
     cfa_threshold = 1.24
+
+    # Flag for checking if currently playing replacement
+    is_replacement = False
 
     i = 0
     while True:
@@ -156,14 +163,32 @@ def main():
         print("Successive music blocks: ", succ_music)
         print("Successive speech blocks: ", succ_speech)
 
-        # Play audio stream
-        mixer.music.load(ac.mp3_to_22_khz_wav(path))
-        mixer.music.play()
+        # Fadeout the track if the currently played type does not correspond to what we want to hear
+        if "music" in cl_arguments:
+            if succ_speech > 2 and not is_replacement:
+                mixer.music.fadeout(300)
+                ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
+                mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
+                mixer.music.play()
+                is_replacement = True
+            if succ_music > 2 and is_replacement:
+                is_replacement = False
+                mixer.music.fadeout(300)
+
+        if not is_replacement:
+            # Play audio stream
+            mixer.music.load(ac.mp3_to_22_khz_wav(path))
+            mixer.music.play()
 
         # Block for 1s
-        sleep(1.5)
+        sleep(1)
         # mixer.music.fadeout(1500)
         print()
+
+        # Clear previous streams on every 10th iteration
+        if i % 10 == 0:
+            clear_streams()
+
         i += 1
 
 main()
