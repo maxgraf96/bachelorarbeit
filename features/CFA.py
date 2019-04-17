@@ -1,4 +1,6 @@
 import glob
+import time
+
 import math
 
 import numpy as np
@@ -75,9 +77,12 @@ def calculation(spec):
         act_func = np.sum(block, axis=1) / block.shape[1]
 
         # Detect strong peaks
+        start = time.time()
         peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because we only want the indices
         minima = scipy.signal.argrelextrema(act_func, np.less)[0]
         peakis.append(calculate_peakiness(peaks, minima, act_func))
+        end = time.time()
+        print("CFA extrema calculation: ", str(end-start))
 
     result = np.sum(peakis) / len(peakis)
     return result

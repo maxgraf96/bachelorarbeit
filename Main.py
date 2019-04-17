@@ -124,10 +124,10 @@ def main():
         cfa_value = 0.2
 
         mfcc = results["mfcc"][0] if is_mfcc else 0
-        cfa = results["cfa"][0] if is_cfa else None
+        cfa = results["cfa"][0] if is_cfa else 0
         grad = results["grad"][0] * grad_weight if is_grad else 0
 
-        if cfa is not None:
+        if cfa is not 0:
             if cfa > cfa_threshold:
                 cfa = cfa_value
             else:

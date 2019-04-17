@@ -1,4 +1,5 @@
 import glob
+import time
 
 import numpy as np
 import scipy.signal
@@ -20,6 +21,7 @@ def cfa_grad_filerate_preprocessing(file):
     # Check if a converted wav is present before converting to 11kHz wav
     if ".mp3" in file:
         file = ac.mp3_to_11_khz_wav(file)
+        return file
 
     converted_path = file[:-4] + "_11_kHz.wav"
     if "11_kHz" in file:
@@ -34,8 +36,10 @@ def cfa_grad_filerate_preprocessing(file):
 
 @jit(cache=True)
 def cfa_grad_preprocessing(file):
+    start = time.time()
     file = cfa_grad_filerate_preprocessing(file)
 
+    end = time.time()
     (rate, signal) = wav.read(file)
     sig = np.array(signal)
 
@@ -52,5 +56,6 @@ def cfa_grad_preprocessing(file):
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=1024)
 
+    print("CFA_GRAD PREPROCESSING took ", str(end-start))
     return spectrogram
 

@@ -1,3 +1,4 @@
+from numba import jit, njit
 from pydub import AudioSegment
 
 def mp3_to_16_khz_wav(src):
@@ -38,6 +39,7 @@ def wav_to_11_khz(src):
     sound.export(converted, format="wav")
     return converted
 
+@jit(cache=True)
 def mp3_to_11_khz_wav(src):
     """
     Takes a path to an mp3 file and converts it to a 11kHz MONO wav file. The new filename is filename_11_kHz.wav
