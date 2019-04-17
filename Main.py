@@ -72,10 +72,13 @@ def main():
     while True:
         results = []
         current_file = "stream_" + str(i)
-        radiorec.my_record(station, 1.0, current_file)
+        radiorec.my_record(station, 0.5, current_file)
         path = "data/test/" + current_file + ".mp3"
 
         print("Current: " + current_file)
+
+        # Take time
+        start = time.time()
 
         # Convert streamed mp3 to wav
         wav_path = ac.mp3_to_16_khz_wav(path)
@@ -181,7 +184,7 @@ def main():
             mixer.music.play()
 
         # Block for 1s
-        sleep(1)
+        #sleep(1)
         # mixer.music.fadeout(1500)
         print()
 
@@ -190,5 +193,9 @@ def main():
             clear_streams()
 
         i += 1
+
+        # Measure execution time
+        end = time.time()
+        print("Elapsed Time: ", str(end - start))
 
 main()
