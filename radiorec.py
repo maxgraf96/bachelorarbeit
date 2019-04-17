@@ -30,6 +30,8 @@ import urllib.request
 import time
 
 # instantiate
+from numba import jit
+
 config = configparser.ConfigParser()
 
 def check_duration(value):

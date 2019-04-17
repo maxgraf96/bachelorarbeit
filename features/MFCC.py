@@ -4,6 +4,7 @@ import numpy as np
 import scipy.io.wavfile as wav
 import sklearn
 import tensorflow as tf
+from numba import jit
 from python_speech_features import delta
 from python_speech_features import mfcc
 from sklearn.decomposition import PCA
@@ -188,7 +189,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
     return trn, lbls
 
-
+@jit(cache=True)
 def read_mfcc(wav_file_path):
     (rate, sig) = wav.read(wav_file_path)
     # Convert signal to mono

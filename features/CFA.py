@@ -4,7 +4,7 @@ import math
 import numpy as np
 import scipy
 import tensorflow as tf
-from numba import jit, numba
+from numba import jit
 from scipy.signal import stft
 
 import Processing
@@ -13,7 +13,7 @@ import Processing
 Continuous frequency activation feature via http://www.cp.jku.at/research/papers/Seyerlehner_etal_DAFx_2007.pdf
 """
 
-@numba.njit
+@jit(nopython=True, cache=True)
 def calculate_peakiness(peaks, minima, act_func):
     pvvalues = []
     for peakidx in peaks:
@@ -48,8 +48,10 @@ def calculate_peakiness(peaks, minima, act_func):
     #peakis.append(peakiness)
     return peakiness
 
+#def precalculation():
 
-def test(spec):
+@jit(cache=True)
+def calculation(spec):
     # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
     # spec = np.delete(spec, np.s_[27:280], axis=0)
     np.multiply(spec[27:280, :], 0.001)
@@ -86,7 +88,7 @@ def calculate_cfa(file, spec=None):
     if spec is None:
         spec = Processing.cfa_grad_preprocessing(file)
 
-    return test(spec)
+    return calculation(spec)
 
     # N = 21
     # for j in range(spec.shape[0]):

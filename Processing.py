@@ -8,6 +8,7 @@ from numba import jit
 import AudioConverter as ac
 import util
 
+@jit(cache=True)
 def cfa_grad_filerate_preprocessing(file):
     """
     Filerate preprocessing for CFA and GRAD
@@ -31,6 +32,7 @@ def cfa_grad_filerate_preprocessing(file):
     return file
 
 
+@jit(cache=True)
 def cfa_grad_preprocessing(file):
     file = cfa_grad_filerate_preprocessing(file)
 

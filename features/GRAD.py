@@ -3,6 +3,7 @@ import glob
 import math
 import numpy as np
 import sklearn
+from numba import jit
 from sklearn.decomposition import PCA
 import tensorflow as tf
 
@@ -21,6 +22,11 @@ def calculate_grad(file, spec=None):
     # Remove frequencies not primarily in the voice spectrum
     spec = np.delete(spec, np.s_[27:], axis=0)
     spec = np.delete(spec, np.s_[0:6], axis=0)
+
+    return calculation(spec)
+
+@jit(cache=True)
+def calculation(spec):
 
     # Create blocks consisting of 10 frames each
     no_blocks = math.ceil(spec.shape[1] / 10)
