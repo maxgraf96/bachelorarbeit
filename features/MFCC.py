@@ -198,3 +198,10 @@ def read_mfcc(wav_file_path):
     d_mfcc_feat = delta(mfcc_feat, 2)
 
     return np.append(mfcc_feat, d_mfcc_feat, axis=1)
+
+@jit(cache=True)
+def read_mfcc_new(sig, rate):
+    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025)
+    d_mfcc_feat = delta(mfcc_feat, 2)
+
+    return np.append(mfcc_feat, d_mfcc_feat, axis=1)

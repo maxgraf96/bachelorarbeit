@@ -39,3 +39,6 @@ def get_random_file(ext, top=os.getcwd()):
         return "No files matched that extension: {}".format(ext)
     rand = random.randint(0, len(file_list) - 1)
     return str(file_list[rand])
+
+def spec_to_khz_spec(spec, khz):
+    return spec[spec < khz, :]

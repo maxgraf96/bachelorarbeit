@@ -113,7 +113,7 @@ def my_record(url, duration, file_name):
     recthread = threading.Thread(target=my_record_worker, args=(stoprec, streamurl, target_dir, False, file_name, duration))
     recthread.setDaemon(True)
     recthread.start()
-    recthread.join()
+    recthread.join(timeout=duration)
 
     if recthread.is_alive:
         stoprec.set()
