@@ -28,8 +28,8 @@ def stereo2mono(x):
                 return -1
 
 def get_random_file(ext, top=os.getcwd()):
-    file_list = list(Path(top).glob(f"**/*.{ext}"))
+    file_list = list(Path(top).glob("**/*.{}".format(ext)))
     if not len(file_list):
-        return f"No files matched that extension: {ext}"
+        return "No files matched that extension: {}".format(ext)
     rand = random.randint(0, len(file_list) - 1)
     return str(file_list[rand])
