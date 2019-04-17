@@ -16,7 +16,7 @@ import AudioConverter as ac
 import tensorflow as tf
 import threading
 
-station = "oe3"
+station = "oe1"
 cl_arguments = sys.argv[1:]
 ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
@@ -70,18 +70,18 @@ def main():
 
     i = 0
     while True:
-        results = []
+        results = {}
         current_file = "stream_" + str(i)
         radiorec.my_record(station, 0.5, current_file)
         path = "data/test/" + current_file + ".mp3"
 
         print("Current: " + current_file)
 
-        # Take time
-        start = time.time()
-
         # Convert streamed mp3 to wav
         wav_path = ac.mp3_to_16_khz_wav(path)
+
+        # Take time
+        start = time.time()
 
         # Use features specified in command line arguments
         if is_mfcc:
@@ -92,7 +92,7 @@ def main():
             thread_mfcc = threading.Thread(target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, result_mfcc, 9), args=(10,))
             thread_mfcc.start()
             thread_mfcc.join()
-            results.extend(result_mfcc)
+            results["mfcc"] = result_mfcc
 
         if is_cfa or is_grad:
             # Calculate the spectrogram once => cfa and abl use the same spectrogram
@@ -104,7 +104,7 @@ def main():
                 thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa, cfa_threshold))
                 thread_cfa.start()
                 thread_cfa.join()
-                results.extend(result_cfa)
+                results["cfa"] = result_cfa
 
 
             if is_grad:
@@ -114,54 +114,67 @@ def main():
                 thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, result_grad))
                 thread_grad.start()
                 thread_grad.join()
-                results.extend(result_grad)
+                results["grad"] = result_grad
 
         # Make a decision and add to blocks
         # Right now we assume that all 3 features are in use
-        final_result = 0  # If this value is > 0, we assume that music is played, and if it is < 0 we assume speech
-        mfcc = results[0]
-        cfa = results[1]
-        grad = results[2]
+        final_result = 0  # If this value is > a threshold, we assume that music is played, and if it is < 0 we assume speech
 
-        mfcc_unsure = 0.4 < mfcc < 0.6
-        cfa_unsure = cfa_threshold - 1 < cfa < cfa_threshold + 1
-        # Check MFCC value -> it works best for identifying music, but not so well for speech
-        if mfcc > 0.5:
-            final_result += 1
-            if mfcc > 0.8:
-                final_result += 2
-        else:
-            final_result -= 1
+        grad_weight = 0.2
+        cfa_value = 0.2
 
-        cfa_value = 2 if mfcc_unsure else 1
-        if cfa_threshold < cfa < cfa_threshold + 1:
-            final_result += cfa_value
-            if cfa > cfa_threshold + 1:
-                final_result += cfa_value
-        else:
-            final_result -= cfa_value
+        mfcc = results["mfcc"][0] if is_mfcc else 0
+        cfa = results["cfa"][0] if is_cfa else None
+        grad = results["grad"][0] * grad_weight if is_grad else 0
 
-        grad_value = 0
-        if mfcc_unsure and cfa_unsure:
-            # Higher weight for grad classifier if the others are unsure. This is because the grad classifier works
-            # especially well for identifying speech, whereas the others are better for music classification
-            grad_value = 2
-        elif mfcc_unsure ^ cfa_unsure:
-            grad_value = 1
-        if grad > 0.5:
-            final_result += grad_value
-        else:
-            final_result -= grad_value
+        if cfa is not None:
+            if cfa > cfa_threshold:
+                cfa = cfa_value
+            else:
+                cfa = -cfa_value
+
+        final_result = (mfcc + grad) / 2 + cfa
+
+
+        # mfcc_unsure = 0.4 < mfcc < 0.6
+        # cfa_unsure = cfa_threshold - 1 < cfa < cfa_threshold + 1 if cfa else False
+        # # Check MFCC value -> it works best for identifying music, but not so well for speech
+        # if mfcc > 0.5:
+        #     final_result += 1
+        #     if mfcc > 0.8:
+        #         final_result += 2
+        # else:
+        #     final_result -= 1
+        #
+        # cfa_value = 2 if mfcc_unsure else 1
+        # if cfa_threshold < cfa < cfa_threshold + 1:
+        #     final_result += cfa_value
+        #     if cfa > cfa_threshold + 1:
+        #         final_result += cfa_value
+        # else:
+        #     final_result -= cfa_value
+        #
+        # grad_value = 0
+        # if mfcc_unsure and cfa_unsure:
+        #     # Higher weight for grad classifier if the others are unsure. This is because the grad classifier works
+        #     # especially well for identifying speech, whereas the others are better for music classification
+        #     grad_value = 2
+        # elif mfcc_unsure ^ cfa_unsure:
+        #     grad_value = 1
+        # if grad > 0.5:
+        #     final_result += grad_value
+        # else:
+        #     final_result -= grad_value
 
         # Add to successive blocks
-        if final_result > 0:
+        if final_result > 0.5:
             succ_music += 1
             succ_speech = 0
         else:
             succ_speech += 1
             succ_music = 0
 
-        result_str = "SPEECH" if final_result <= 0 else "MUSIC"
+        result_str = "SPEECH" if final_result <= 0.5 else "MUSIC"
         print("FINAL RESULT: ", final_result, " => " + result_str)
         print("Successive music blocks: ", succ_music)
         print("Successive speech blocks: ", succ_speech)
