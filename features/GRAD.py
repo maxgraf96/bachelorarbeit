@@ -28,12 +28,12 @@ def calculate_grad(file, spec=None):
 @jit(cache=True)
 def calculation(spec):
 
-    # Create blocks consisting of 10 frames each
-    no_blocks = math.ceil(spec.shape[1] / 10)
+    # Create blocks consisting of 3 frames each
+    no_blocks = math.ceil(spec.shape[1] / 3)
     gradients = []
     for step in range(no_blocks):
-        start = step * 10
-        end = start + 10
+        start = step * 3
+        end = start + 3
         if end > spec.shape[1]:
             end = spec.shape[1]
         block = spec[:, start:end]

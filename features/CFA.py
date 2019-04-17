@@ -47,27 +47,25 @@ def calculate_peakiness(peaks, minima, act_func):
     pvvalues[::-1].sort()  # sort descending
     finals = pvvalues[0:5]
     peakiness = np.sum(finals)
-    #peakis.append(peakiness)
     return peakiness
 
-#def precalculation():
 
-@jit(cache=True)
+#@jit(cache=True)
 def calculation(spec):
     # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
     # spec = np.delete(spec, np.s_[27:280], axis=0)
-    np.multiply(spec[27:280, :], 0.001)
+    # np.multiply(spec[27:280, :], 0.001)
 
     # Binarize
     spec = np.where(spec > 10, 1, 0)
 
-    # Create blocks consisting of 100 frames each with 50 blocks overlap
-    no_blocks = math.ceil(spec.shape[1] / 25)
+    # Create blocks consisting of 3 frames each
+    no_blocks = math.ceil(spec.shape[1] / 3)
     blocks = []
     peakis = []  # in the end this list contains the peakiness values for all blocks
     for step in range(no_blocks):
-        start = step * 25
-        end = start + 50
+        start = step * 3
+        end = start + 3
         if end > spec.shape[1]:
             end = spec.shape[1]
         block = spec[:, start:end]
@@ -77,24 +75,28 @@ def calculation(spec):
         act_func = np.sum(block, axis=1) / block.shape[1]
 
         # Detect strong peaks
-        start = time.time()
         peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because we only want the indices
         minima = scipy.signal.argrelextrema(act_func, np.less)[0]
         peakis.append(calculate_peakiness(peaks, minima, act_func))
-        end = time.time()
-        print("CFA extrema calculation: ", str(end-start))
+
 
     result = np.sum(peakis) / len(peakis)
     return result
 
 def calculate_cfa(file, spec=None):
 
+    tstart = time.time()
+
     # Get the spectrogram
     if spec is None:
         spec = Processing.cfa_grad_preprocessing(file)
 
-    return calculation(spec)
+    result = calculation(spec)
 
+    tend = time.time()
+    print("CFA extrema calculation: ", str(tend - tstart))
+
+    return result
     # N = 21
     # for j in range(spec.shape[0]):
     #     k = 0 if j < 10 else 10

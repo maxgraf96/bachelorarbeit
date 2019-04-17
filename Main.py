@@ -47,7 +47,7 @@ def main():
 
     # GRAD
     if len(glob.glob("clf_grad.h5")) < 1:
-        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 6000)
+        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 60000)
         clf_grad.save('clf_grad.h5')
     else:
         # GRAD Tensorflow nn
@@ -63,7 +63,7 @@ def main():
     succ_music = 0
 
     # CFA threshold
-    cfa_threshold = 1.24
+    cfa_threshold = 3.4
 
     # Flag for checking if currently playing replacement
     is_replacement = False
@@ -77,15 +77,14 @@ def main():
 
         print("Current: " + current_file)
 
-        # Convert streamed mp3 to wav
-        wav_path = ac.mp3_to_16_khz_wav(path)
-
         # Take time
         start = time.time()
 
         # Use features specified in command line arguments
         if is_mfcc:
             # MFCC classification
+            # Convert streamed mp3 to wav
+            wav_path = ac.mp3_to_16_khz_wav(path)
             current_mfcc = MFCC.read_mfcc(wav_path)
             current_duration = util.get_wav_duration(wav_path)
             result_mfcc = [-1]
@@ -120,21 +119,37 @@ def main():
         # Right now we assume that all 3 features are in use
         final_result = 0  # If this value is > a threshold, we assume that music is played, and if it is < 0 we assume speech
 
-        grad_weight = 0.2
+        divisor = 0
+        if is_mfcc:
+            divisor += 1
+        if is_grad:
+            divisor += 1
+        grad_weight = 0.5
         cfa_value = 0.2
 
         mfcc = results["mfcc"][0] if is_mfcc else 0
         cfa = results["cfa"][0] if is_cfa else 0
         grad = results["grad"][0] * grad_weight if is_grad else 0
 
+        if mfcc > 0.9:
+            cfa_value = 0.1
+            divisor -= 1
+
         if cfa is not 0:
             if cfa > cfa_threshold:
                 cfa = cfa_value
+                if cfa > 4:
+                    cfa += cfa_value
             else:
                 cfa = -cfa_value
 
-        final_result = (mfcc + grad) / 2 + cfa
+        if grad < 0.3:
+            grad *= 0.5
 
+        if grad is 0:
+            divisor += 1
+
+        final_result = (mfcc + grad) / divisor + cfa
 
         # mfcc_unsure = 0.4 < mfcc < 0.6
         # cfa_unsure = cfa_threshold - 1 < cfa < cfa_threshold + 1 if cfa else False
@@ -180,26 +195,24 @@ def main():
         print("Successive speech blocks: ", succ_speech)
 
         # Fadeout the track if the currently played type does not correspond to what we want to hear
-        if "music" in cl_arguments:
-            if succ_speech > 2 and not is_replacement:
-                mixer.music.fadeout(300)
-                ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
-                mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
-                mixer.music.play()
-                is_replacement = True
-            if succ_music > 2 and is_replacement:
-                is_replacement = False
-                mixer.music.fadeout(300)
+        # if "music" in cl_arguments:
+        #     if succ_speech > 2 and not is_replacement:
+        #         mixer.music.fadeout(300)
+        #         ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
+        #         mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
+        #         mixer.music.play()
+        #         is_replacement = True
+        #     if succ_music > 2 and is_replacement:
+        #         is_replacement = False
+        #         mixer.music.fadeout(300)
+        #
+        # if not is_replacement:
+        #     # Play audio stream
+        #     mixer.music.load(ac.mp3_to_22_khz_wav(path))
+        #     mixer.music.play()
 
-        if not is_replacement:
-            # Play audio stream
-            mixer.music.load(ac.mp3_to_22_khz_wav(path))
-            mixer.music.play()
-
-        # Block for 1s
-        #sleep(1)
-        # mixer.music.fadeout(1500)
-        print()
+        mixer.music.load(ac.mp3_to_22_khz_wav(path))
+        mixer.music.play()
 
         # Clear previous streams on every 10th iteration
         if i % 10 == 0:
@@ -210,5 +223,6 @@ def main():
         # Measure execution time
         end = time.time()
         print("Elapsed Time: ", str(end - start))
+        print()
 
 main()

@@ -40,11 +40,11 @@ def main():
         y_true.append(1)
 
     print("Evaluating GRAD Feature...")
-    # evaluate_grad(data, y_true, [-1700, -1600, -1500, -1400, -1300, -1200])
-    evaluate_grad(data, y_true, clf_grad)
+    # evaluate_grad(data, y_true, clf_grad)
 
     # print("Evaluating CFA Feature...")
     # evaluate_cfa(data, y_true, thresholds=[0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2])
+    evaluate_cfa(data, y_true, thresholds=[1.2, 1.5, 1.8, 2.2, 2.4, 2.6, 3, 3.2, 3.4, 3.6, 3.8])
 
 def evaluate_grad(x_tst, y_true, clf):
     y_grads = []

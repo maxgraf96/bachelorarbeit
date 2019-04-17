@@ -12,7 +12,7 @@ import util
 @jit(cache=True)
 def cfa_grad_filerate_preprocessing(file):
     """
-    Filerate preprocessing for CFA and GRAD
+    Filter rate preprocessing for CFA and GRAD
     :param file: The file to preprocess. The function checks if an 11kHz file exists and if not, converts the given file
     to an 11kHz MONO file.
     :return: the processed file or the original (11kHz file if it already exists)
@@ -51,10 +51,10 @@ def cfa_grad_preprocessing(file):
     sig[sig < noise_gate_level] = 0
 
     # Estimate the spectrogram using a Hanning window
-    window = np.hanning(1024)  # 1024 samples correspond to ~ 100ms
+    window = np.hanning(256)  # 1024 samples correspond to ~ 100ms
 
     # Calculate the spectrogram using stft and emphasize local maxima
-    frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=1024)
+    frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=256)
 
     print("CFA_GRAD PREPROCESSING took ", str(end-start))
     return spectrogram
