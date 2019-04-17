@@ -13,10 +13,12 @@ import Processing
 An idea for a feature
 """
 
-def calculate_grad(file, spec=None):
+def calculate_grad(file=None, spec=None):
 
     # Get the spectrogram
-    if spec is None:
+    if file is None and spec is None:
+        raise ValueError("Either a file for conversion or a spectrogram must be passed to this function.")
+    elif file is not None and spec is None:
         spec = Processing.cfa_grad_preprocessing(file)
 
     # Remove frequencies not primarily in the voice spectrum

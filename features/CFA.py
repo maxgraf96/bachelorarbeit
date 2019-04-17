@@ -83,12 +83,14 @@ def calculation(spec):
     result = np.sum(peakis) / len(peakis)
     return result
 
-def calculate_cfa(file, spec=None):
+def calculate_cfa(file=None, spec=None):
 
     tstart = time.time()
 
     # Get the spectrogram
-    if spec is None:
+    if file is None and spec is None:
+        raise ValueError("Either a file for conversion or a spectrogram must be passed to this function.")
+    elif file is not None and spec is None:
         spec = Processing.cfa_grad_preprocessing(file)
 
     result = calculation(spec)

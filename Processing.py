@@ -10,6 +10,36 @@ import AudioConverter as ac
 import util
 
 @jit(cache=True)
+def preprocessing_new(wav_path):
+    (rate, signal) = scipy.io.wavfile.read(wav_path)
+    sig = np.array(signal)
+
+    # Convert signal to mono
+    sig = util.stereo2mono(sig)
+
+    # Apply noise gate
+    noise_gate_level = 0.5
+    sig[sig < noise_gate_level] = 0
+
+    # Estimate the spectrogram using a Hanning window
+    window = np.hanning(256)  # 1024 samples correspond to ~ 100ms
+
+    # Calculate the spectrogram using stft and emphasize local maxima
+    frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=256)
+
+    if rate < 11025:
+        raise ValueError(
+            "The sampling rate of the incoming signal is too low for Continuous Frequency Activation and GRAD processing.")
+
+    # Cut the spectrogram to 11khz for cfa and grad processing
+    # NOTE: Assuming that the frequencies are distributed linearly along the spectrogram
+    upper_limit_idx = np.argmin(np.abs(frequencies - (11025 / 2)))
+    spectrogram = spectrogram[:upper_limit_idx, :]
+
+    return sig, rate, frequencies, times, spectrogram
+
+
+@jit(cache=True)
 def cfa_grad_filerate_preprocessing(file):
     """
     Filter rate preprocessing for CFA and GRAD
