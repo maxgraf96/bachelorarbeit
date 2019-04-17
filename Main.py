@@ -72,7 +72,7 @@ def main():
     while True:
         results = []
         current_file = "stream_" + str(i)
-        radiorec.my_record(station, 3.0, current_file)
+        radiorec.my_record(station, 1.0, current_file)
         path = "data/test/" + current_file + ".mp3"
 
         print("Current: " + current_file)

@@ -4,6 +4,7 @@ import math
 import numpy as np
 import scipy
 import tensorflow as tf
+from numba import jit, numba
 from scipy.signal import stft
 
 import Processing
@@ -12,21 +13,45 @@ import Processing
 Continuous frequency activation feature via http://www.cp.jku.at/research/papers/Seyerlehner_etal_DAFx_2007.pdf
 """
 
-def calculate_cfa(file, spec=None):
+@numba.njit
+def calculate_peakiness(peaks, minima, act_func):
+    pvvalues = []
+    for peakidx in peaks:
+        # find nearest local minimum to the left
+        smaller_peak_indices = minima[minima < peakidx]
+        search = np.abs(smaller_peak_indices - peakidx)
+        if len(search) == 0:
+            nearest_idx_l = 0
+            # print("Len = 0 L")
+        else:
+            nearest_idx_l = smaller_peak_indices[search.argmin()]
+        # find nearest local minimum to the right
+        greater_peak_indices = minima[minima > peakidx]
+        search = np.abs(greater_peak_indices - peakidx)
+        if len(search) == 0:
+            nearest_idx_r = 0
+            # print("Len = 0 R")
+        else:
+            nearest_idx_r = greater_peak_indices[search.argmin()]
 
-    # Get the spectrogram
-    if spec is None:
-        spec = Processing.cfa_grad_preprocessing(file)
+        xl = act_func[peakidx] - act_func[nearest_idx_l]
+        xr = act_func[peakidx] - act_func[nearest_idx_r]
+        height = min(xl, xr)
+        width = peakidx - nearest_idx_l if xl < xr else nearest_idx_r - peakidx
+        pv = height / width
+        pvvalues.append(pv)
 
-    # N = 21
-    # for j in range(spec.shape[0]):
-    #     k = 0 if j < 10 else 10
-    #     l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
-    #     current_sum = np.sum(spec[(j - k):(j + l), :], axis=0)
-    #     spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
+    pvvalues = np.array(pvvalues)
+    pvvalues[::-1].sort()  # sort descending
+    finals = pvvalues[0:5]
+    peakiness = np.sum(finals)
+    #peakis.append(peakiness)
+    return peakiness
 
+
+def test(spec):
     # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
-    #spec = np.delete(spec, np.s_[27:280], axis=0)
+    # spec = np.delete(spec, np.s_[27:280], axis=0)
     np.multiply(spec[27:280, :], 0.001)
 
     # Binarize
@@ -50,40 +75,25 @@ def calculate_cfa(file, spec=None):
         # Detect strong peaks
         peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because we only want the indices
         minima = scipy.signal.argrelextrema(act_func, np.less)[0]
-        pvvalues = []
-        for peakidx in peaks:
-            # find nearest local minimum to the left
-            smaller_peak_indices = minima[minima < peakidx]
-            search = np.abs(smaller_peak_indices - peakidx)
-            if len(search) == 0:
-                nearest_idx_l = 0
-                # print("Len = 0 L")
-            else:
-                nearest_idx_l = smaller_peak_indices[search.argmin()]
-            # find nearest local minimum to the right
-            greater_peak_indices = minima[minima > peakidx]
-            search = np.abs(greater_peak_indices - peakidx)
-            if len(search) == 0:
-                nearest_idx_r = 0
-                # print("Len = 0 R")
-            else:
-                nearest_idx_r = greater_peak_indices[search.argmin()]
-
-            xl = act_func[peakidx] - act_func[nearest_idx_l]
-            xr = act_func[peakidx] - act_func[nearest_idx_r]
-            height = min(xl, xr)
-            width = peakidx - nearest_idx_l if xl < xr else nearest_idx_r - peakidx
-            pv = height / width
-            pvvalues.append(pv)
-
-        pvvalues = np.array(pvvalues)
-        pvvalues[::-1].sort()  # sort descending
-        finals = pvvalues[0:5]
-        peakiness = np.sum(finals)
-        peakis.append(peakiness)
+        peakis.append(calculate_peakiness(peaks, minima, act_func))
 
     result = np.sum(peakis) / len(peakis)
     return result
+
+def calculate_cfa(file, spec=None):
+
+    # Get the spectrogram
+    if spec is None:
+        spec = Processing.cfa_grad_preprocessing(file)
+
+    return test(spec)
+
+    # N = 21
+    # for j in range(spec.shape[0]):
+    #     k = 0 if j < 10 else 10
+    #     l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
+    #     current_sum = np.sum(spec[(j - k):(j + l), :], axis=0)
+    #     spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
 
 
 def calculate_cfas(path_speech, path_music, max_cfas):
@@ -132,30 +142,4 @@ def calculate_cfas(path_speech, path_music, max_cfas):
     print("Average CFA speech: " + str(np.average(sp_cfas)) + ", Average CFA music: " + str(np.average(mu_cfas)))
 
     return trn, lbls
-
-def train_cfa_nn(path_speech, path_music, max_cfas):
-
-    # Calculate CFA features
-    trn, lbls = calculate_cfas(path_speech, path_music, max_cfas)
-
-    # Classifier fitting
-    # Tensorflow nn
-    clf = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(1, 1)),
-        tf.keras.layers.Dense(128, activation=tf.nn.relu),
-        tf.keras.layers.Dense(2, activation=tf.nn.softmax)
-    ])
-    clf.compile(optimizer='adam',
-                  loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
-
-    trn = trn.reshape((trn.shape[0], 1, 1))
-    clf.fit(trn, lbls, epochs=3)
-
-    return clf
-
-def predict_nn(clf, cfa):
-    cfa = cfa.reshape((1, 1, 1))
-    prediction = clf.predict(cfa)
-    return prediction
 
