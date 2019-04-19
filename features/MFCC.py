@@ -1,5 +1,6 @@
 import glob
 
+import joblib
 import numpy as np
 import scipy.io.wavfile as wav
 import sklearn
@@ -17,12 +18,20 @@ import util
 def train_mfcc_nn(path_speech, path_music, max_duration):
 
     # Calculate MFCCs
-    trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
+    if len(glob.glob(util.ext_hdd_path + "data/mfcc_trn.joblib")) < 1:
+        trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
+        joblib.dump(trn, util.ext_hdd_path + "data/mfcc_trn.joblib")
+        joblib.dump(lbls, util.ext_hdd_path + "data/mfcc_lbls.joblib")
+    else:
+        trn = joblib.load(util.ext_hdd_path + "data/mfcc_trn.joblib")
+        lbls = joblib.load(util.ext_hdd_path + "data/mfcc_lbls.joblib")
 
     # Preprocessing
-    trn = sklearn.preprocessing.scale(trn, axis=1)
-    pca = PCA(n_components=9)
-    principal_components = pca.fit_transform(trn)
+    scaler = sklearn.preprocessing.StandardScaler()
+    trn = scaler.fit_transform(trn)
+    #trn = sklearn.preprocessing.scale(trn)
+    #pca = PCA(n_components=13)
+    #prcomp = pca.fit_transform(trn)
 
     # Classifier fitting
     # Tensorflow nn
@@ -38,12 +47,15 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
                   loss='sparse_categorical_crossentropy',
                   metrics=['accuracy'])
 
+
+
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
     clf.fit(trn, lbls, epochs=5)
 
-    return clf, pca
+    return clf, scaler  #, pca
 
-def predict_nn(clf, mfcc_in):
+def predict_nn(clf, scaler, mfcc_in):
+    mfcc_in = scaler.fit_transform(mfcc_in)
     mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
     prediction = clf.predict(mfcc_in)
     result = np.greater(prediction[:, 1], prediction[:, 0])

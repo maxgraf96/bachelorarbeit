@@ -9,6 +9,7 @@ import numpy as np
 import tensorflow as tf
 from numba import jit
 from pygame import mixer
+from joblib import dump, load
 
 import AudioConverter as ac
 import Output
@@ -19,7 +20,6 @@ from features import MFCC, CFA, GRAD
 
 station = "oe1"
 cl_arguments = sys.argv[1:]
-ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
 # Command line arguments check
 is_mfcc = "mfcc" in cl_arguments
@@ -30,7 +30,7 @@ is_grad = "grad" in cl_arguments
 cfa_threshold = 3.4
 
 # Livestream or from file
-live_stream = True
+live_stream = False
 from_file = not live_stream
 
 def clear_streams():
@@ -38,7 +38,7 @@ def clear_streams():
     for p in Path("data/test").glob("*"):
         p.unlink()
 
-def calc_from_stream(clf_mfcc, clf_grad):
+def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad):
     succ_music = 0
     succ_speech = 0
     i = 0
@@ -64,7 +64,7 @@ def calc_from_stream(clf_mfcc, clf_grad):
             current_duration = util.get_wav_duration(wav_path)
             result_mfcc = [-1]
             thread_mfcc = threading.Thread(
-                target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, result_mfcc, 9), args=(10,))
+                target=Output.print_mfcc(current_mfcc, clf_mfcc, scaler_mfcc, current_duration, result_mfcc, 9), args=(10,))
 
         if is_cfa or is_grad:
             if is_cfa:
@@ -175,7 +175,7 @@ def calc_from_stream(clf_mfcc, clf_grad):
         print("Elapsed Time: ", str(end - start))
         print()
 
-def calc_from_file(clf_mfcc, clf_grad):
+def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad):
     file = "stream_long"
     radiorec.my_record(station, 15, file)
     path = "data/test/" + file + ".mp3"
@@ -208,7 +208,7 @@ def calc_from_file(clf_mfcc, clf_grad):
             current_duration = 0.5
             result_mfcc = [-1]
             thread_mfcc = threading.Thread(
-                target=Output.print_mfcc(current_mfcc, clf_mfcc, current_duration, result_mfcc, 9), args=(10,))
+                target=Output.print_mfcc(current_mfcc, clf_mfcc, scaler_mfcc, current_duration, result_mfcc, 9), args=(10,))
 
         if is_cfa or is_grad:
             startidx = math.floor(spectrogram.shape[1] * i / half_seconds)
@@ -253,7 +253,7 @@ def calc_from_file(clf_mfcc, clf_grad):
             divisor += 1
         if is_grad:
             divisor += 1
-        grad_weight = 0.5
+        grad_weight = 0.3
         cfa_value = 0.2
 
         mfcc = results["mfcc"][0] if is_mfcc else 0
@@ -329,28 +329,38 @@ def main():
     if len(glob.glob("clf_mfcc.h5")) < 1:
         print("Saving model...")
         # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-        clf_mfcc, pca = MFCC.train_mfcc_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 6000)
+        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 150000)
         clf_mfcc.save('clf_mfcc.h5')
+        dump(scaler_mfcc, "scaler_mfcc.joblib")
+        # Store pca in joblib
+        #dump(pca_mfcc, 'pca_mfcc.joblib')
+
     else:
         print("Restoring models...")
         # MFCC Tensorflow nn
         clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
+        scaler_mfcc = load("scaler_mfcc.joblib")
+        #pca_mfcc = load('pca_mfcc.joblib')
 
     # GRAD
     if len(glob.glob("clf_grad.h5")) < 1:
-        clf_grad = GRAD.train_grad_nn(ext_hdd_path + "data/speech", ext_hdd_path + "data/music", 60000)
+        clf_grad = GRAD.train_grad_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 150000)
         clf_grad.save('clf_grad.h5')
+        # Store pca in joblib
+        #dump(pca_grad, 'pca_grad.joblib')
     else:
         # GRAD Tensorflow nn
         clf_grad = tf.keras.models.load_model('clf_grad.h5')
+        #pca_grad = load('pca_grad.joblib')
 
     # Flag for checking if currently playing replacement
     is_replacement = False
 
     if from_file:
-        calc_from_file(clf_mfcc, clf_grad)
+        calc_from_file(clf_mfcc, scaler_mfcc, clf_grad)
+
     if live_stream:
-        calc_from_stream(clf_mfcc, clf_grad)
+        calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad)
 
 
 main()

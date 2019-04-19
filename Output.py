@@ -3,7 +3,7 @@ import numpy as np
 from features import MFCC, CFA, GRAD
 
 
-def print_mfcc(mfcc, clf, duration, result_mfcc, splits=9):
+def print_mfcc(mfcc, clf, scaler_mfcc, duration, result_mfcc, splits=9):
     """
     Splits the n seconds (coming from duration) into 'splits' bundles each containing the information for n/splits seconds
     """
@@ -12,7 +12,7 @@ def print_mfcc(mfcc, clf, duration, result_mfcc, splits=9):
 
     total = 0
     for i in range(splits):
-        result = MFCC.predict_nn(clf, split[i])
+        result = MFCC.predict_nn(clf, scaler_mfcc, split[i])
         ones = np.count_nonzero(result)
         total += ones / len(result)
     result = round(total / splits, 4)

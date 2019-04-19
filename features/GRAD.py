@@ -82,7 +82,7 @@ def calculate_grads(path_speech, path_music, max_grads):
         processed_files.append(file)
 
 
-    print("Processed " + str(file) + " speech files.")
+    print("Processed " + str(file) + " speech files and " + str(no_grads) + " Grads.")
 
     sp_grads = np.array(sp_grads)
     sp_lbls = np.zeros(len(sp_grads))
@@ -112,7 +112,7 @@ def calculate_grads(path_speech, path_music, max_grads):
         file += 1
         processed_files.append(file)
 
-    print("Processed " + str(file) + " music files.")
+    print("Processed " + str(file) + " music files and " + str(no_grads) + " Grads.")
 
     # Convert GRAD list into array for fitting
     mu_grads = np.array(mu_grads)
@@ -135,7 +135,8 @@ def train_grad_nn(path_speech, path_music, max_grads):
 
     # Preprocessing
     trn = sklearn.preprocessing.scale(trn, axis=1)
-    pca = PCA(n_components=9)
+    #pca = PCA(n_components=15)
+    #prcomp = pca.fit_transform(trn)
 
     # Classifier fitting
     # Tensorflow nn
@@ -157,6 +158,7 @@ def train_grad_nn(path_speech, path_music, max_grads):
 
 
 def predict_nn(clf, grad_in):
+    #grad_in = sklearn.preprocessing.scale(grad_in)
     grad_in = grad_in.reshape((1, 1, grad_in.shape[0]))
     prediction = clf.predict(grad_in)
     result = np.greater(prediction[:, 1], prediction[:, 0])

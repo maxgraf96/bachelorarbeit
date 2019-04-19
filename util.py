@@ -7,6 +7,7 @@ import time
 import soundfile as sf
 from numba import jit
 
+ext_hdd_path = "/media/max/Elements/bachelorarbeit/"
 
 def get_wav_duration(file):
     f = sf.SoundFile(file)
