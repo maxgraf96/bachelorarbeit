@@ -134,7 +134,9 @@ def train_grad_nn(path_speech, path_music, max_grads):
     trn, lbls = calculate_grads(path_speech, path_music, max_grads)
 
     # Preprocessing
-    trn = sklearn.preprocessing.scale(trn, axis=1)
+    scaler = sklearn.preprocessing.StandardScaler()
+    trn = scaler.fit_transform(trn)
+
     #pca = PCA(n_components=15)
     #prcomp = pca.fit_transform(trn)
 
@@ -154,12 +156,12 @@ def train_grad_nn(path_speech, path_music, max_grads):
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
     clf.fit(trn, lbls, epochs=5)
 
-    return clf
+    return clf, scaler
 
 
-def predict_nn(clf, grad_in):
-    #grad_in = sklearn.preprocessing.scale(grad_in)
-    grad_in = grad_in.reshape((1, 1, grad_in.shape[0]))
+def predict_nn(clf, scaler_grad, grad_in):
+    grad_in = scaler_grad.transform(grad_in.reshape(1, -1))
+    grad_in = grad_in.reshape((1, 1, grad_in.shape[1]))
     prediction = clf.predict(grad_in)
     result = np.greater(prediction[:, 1], prediction[:, 0])
     return result.astype(int)

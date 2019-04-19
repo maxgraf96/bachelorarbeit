@@ -38,7 +38,7 @@ def clear_streams():
     for p in Path("data/test").glob("*"):
         p.unlink()
 
-def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad):
+def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
     succ_music = 0
     succ_speech = 0
     i = 0
@@ -77,7 +77,7 @@ def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad):
                 # GRAD classification
                 result_grad = [-1]
                 grad = GRAD.calculate_grad(spec=spectrogram)
-                thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, result_grad))
+                thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, scaler_grad, result_grad))
 
         if is_mfcc:
             thread_mfcc.start()
@@ -175,7 +175,7 @@ def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad):
         print("Elapsed Time: ", str(end - start))
         print()
 
-def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad):
+def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
     file = "stream_long"
     radiorec.my_record(station, 15, file)
     path = "data/test/" + file + ".mp3"
@@ -225,7 +225,7 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad):
                 # GRAD classification
                 result_grad = [-1]
                 grad = GRAD.calculate_grad(spec=np.copy(spectrogram[:, startidx:endidx]))
-                thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, result_grad))
+                thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, scaler_grad, result_grad))
 
         if is_mfcc:
             thread_mfcc.start()
@@ -344,23 +344,24 @@ def main():
 
     # GRAD
     if len(glob.glob("clf_grad.h5")) < 1:
-        clf_grad = GRAD.train_grad_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 150000)
+        clf_grad, scaler_grad = GRAD.train_grad_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 150000)
         clf_grad.save('clf_grad.h5')
+        dump(scaler_grad, "scaler_grad.joblib")
         # Store pca in joblib
         #dump(pca_grad, 'pca_grad.joblib')
     else:
         # GRAD Tensorflow nn
         clf_grad = tf.keras.models.load_model('clf_grad.h5')
-        #pca_grad = load('pca_grad.joblib')
+        scaler_grad = load("scaler_grad.joblib")
 
     # Flag for checking if currently playing replacement
     is_replacement = False
 
     if from_file:
-        calc_from_file(clf_mfcc, scaler_mfcc, clf_grad)
+        calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad)
 
     if live_stream:
-        calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad)
+        calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad)
 
 
 main()

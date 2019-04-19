@@ -31,13 +31,13 @@ def print_cfa(cfa, result_cfa, threshold=1.24):
     print("CFA: " + str(result) + " - " + res)
 
 
-def print_grad(grads, clf, result_grad):
+def print_grad(grads, clf, scaler_grad, result_grad):
     ones = 0
     zeroes = 0
     total = 0
     start = time.time()
     for grad in grads:
-        result = GRAD.predict_nn(clf, grad)
+        result = GRAD.predict_nn(clf, scaler_grad, grad)
         ones = np.count_nonzero(result)
         total += ones / len(result)
     result = round(total / len(grads), 4)

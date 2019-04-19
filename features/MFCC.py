@@ -55,7 +55,7 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
     return clf, scaler  #, pca
 
 def predict_nn(clf, scaler, mfcc_in):
-    mfcc_in = scaler.fit_transform(mfcc_in)
+    mfcc_in = scaler.transform(mfcc_in)
     mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
     prediction = clf.predict(mfcc_in)
     result = np.greater(prediction[:, 1], prediction[:, 0])
