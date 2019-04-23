@@ -18,7 +18,7 @@ import radiorec
 import util
 from features import MFCC, CFA, GRAD
 
-station = "oe1"
+station = "fm4"
 cl_arguments = sys.argv[1:]
 
 # Command line arguments check
@@ -60,7 +60,7 @@ def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
         # Use features specified in command line arguments
         if is_mfcc:
             # MFCC classification
-            current_mfcc = MFCC.read_mfcc_new(sig, rate)
+            current_mfcc = MFCC.read_mfcc(sig, rate)
             current_duration = util.get_wav_duration(wav_path)
             result_mfcc = [-1]
             thread_mfcc = threading.Thread(
@@ -129,7 +129,7 @@ def calc_from_stream(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
         if grad is 0:
             divisor += 1
 
-        final_result = (mfcc + grad) / divisor + cfa
+        final_result = mfcc + cfa
 
         # Add to successive blocks
         if final_result > 0.5:
@@ -192,6 +192,8 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
     succ_music = 0
     succ_speech = 0
 
+    time_per_iteration = 0
+    i = 0
     for i in range(half_seconds):
         # Take time
         start = time.time()
@@ -204,7 +206,7 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
             # MFCC classification
             startidx = math.floor(len(sig) * i / half_seconds)
             endidx = math.ceil(len(sig) * (i + 1) / half_seconds)
-            current_mfcc = MFCC.read_mfcc_new(sig[startidx:endidx], rate)
+            current_mfcc = MFCC.read_mfcc(sig[startidx:endidx], rate)
             current_duration = 0.5
             result_mfcc = [-1]
             thread_mfcc = threading.Thread(
@@ -213,7 +215,7 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
         if is_cfa or is_grad:
             startidx = math.floor(spectrogram.shape[1] * i / half_seconds)
             endidx = math.ceil(spectrogram.shape[1] * (i + 1) / half_seconds)
-            print(endidx)
+            #print(endidx)
             if is_cfa:
                 # CFA classification
                 cfa = CFA.calculate_cfa(spec=np.copy(
@@ -221,18 +223,18 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
                 result_cfa = [-1]
                 thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa, cfa_threshold))
 
-            if is_grad:
-                # GRAD classification
-                result_grad = [-1]
-                grad = GRAD.calculate_grad(spec=np.copy(spectrogram[:, startidx:endidx]))
-                thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, scaler_grad, result_grad))
+            # if is_grad:
+            #     # GRAD classification
+            #     result_grad = [-1]
+            #     grad = GRAD.calculate_grad(spec=np.copy(spectrogram[:, startidx:endidx]))
+            #     thread_grad = threading.Thread(target=Output.print_grad(grad, clf_grad, scaler_grad, result_grad))
 
         if is_mfcc:
             thread_mfcc.start()
         if is_cfa:
             thread_cfa.start()
-        if is_grad:
-            thread_grad.start()
+        # if is_grad:
+        #     thread_grad.start()
 
         if is_mfcc:
             thread_mfcc.join()
@@ -240,9 +242,9 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
         if is_cfa:
             thread_cfa.join()
             results["cfa"] = result_cfa
-        if is_grad:
-            thread_grad.join()
-            results["grad"] = result_grad
+        # if is_grad:
+        #     thread_grad.join()
+        #     results["grad"] = result_grad
 
         # Make a decision and add to blocks
         # Right now we assume that all 3 features are in use
@@ -251,14 +253,14 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
         divisor = 0
         if is_mfcc:
             divisor += 1
-        if is_grad:
-            divisor += 1
-        grad_weight = 0.3
+        #if is_grad:
+        #    divisor += 1
+        #grad_weight = 0.3
         cfa_value = 0.2
 
         mfcc = results["mfcc"][0] if is_mfcc else 0
         cfa = results["cfa"][0] if is_cfa else 0
-        grad = results["grad"][0] * grad_weight if is_grad else 0
+        #grad = results["grad"][0] * grad_weight if is_grad else 0
 
         if mfcc > 0.9 and is_cfa:
             cfa_value = 0.1
@@ -272,13 +274,13 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
             else:
                 cfa = -cfa_value
 
-        if grad < 0.3:
-            grad *= 0.5
+        # if grad < 0.3:
+        #     grad *= 0.5
 
-        if grad is 0:
-            divisor += 1
+        # if grad is 0:
+        #     divisor += 1
 
-        final_result = (mfcc + grad) / divisor + cfa
+        final_result = mfcc + cfa
 
         # Add to successive blocks
         if final_result > 0.5:
@@ -314,8 +316,12 @@ def calc_from_file(clf_mfcc, scaler_mfcc, clf_grad, scaler_grad):
 
         # Measure execution time
         end = time.time()
-        print("Elapsed Time: ", str(end - start))
+        elapsed = end - start
+        time_per_iteration += elapsed if i > 1 else 0  # First iteration takes longer as numba caches all the functions
+        print("Elapsed Time: ", str(elapsed))
         print()
+
+    print("Average time per iteration: ", str(time_per_iteration / i))
 
 def main():
     # Clear previous streams
@@ -328,12 +334,10 @@ def main():
     # MFCC
     if len(glob.glob("clf_mfcc.h5")) < 1:
         print("Saving model...")
-        # Tensorflow nn, Note: Only saves the network currently (pca is discarded)
-        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 150000)
+        # Tensorflow nn
+        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 500)
         clf_mfcc.save('clf_mfcc.h5')
         dump(scaler_mfcc, "scaler_mfcc.joblib")
-        # Store pca in joblib
-        #dump(pca_mfcc, 'pca_mfcc.joblib')
 
     else:
         print("Restoring models...")

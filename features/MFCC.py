@@ -1,13 +1,17 @@
 import glob
 
 import joblib
+import math
 import numpy as np
 import scipy.io.wavfile as wav
 import sklearn
 import tensorflow as tf
 from numba import jit
-from python_speech_features import delta
-from python_speech_features import mfcc
+# from python_speech_features import delta
+# from python_speech_features import mfcc
+from tqdm import tqdm
+
+from features.MFCC_base import mfcc, delta
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -26,21 +30,28 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
         trn = joblib.load(util.ext_hdd_path + "data/mfcc_trn.joblib")
         lbls = joblib.load(util.ext_hdd_path + "data/mfcc_lbls.joblib")
 
+    # Append labels to data for random shuffling
+    train = np.empty(shape=(trn.shape[0], trn.shape[1] + 1))
+    train[:, :trn.shape[1]] = trn
+    train[:, train.shape[1] - 1] = lbls
+    # Split randomly into training and test
+    # Ratio = 50/50
+    if trn.shape[0] % 2 is not 0:
+        trn = np.delete(trn, trn.shape[0] - 1, axis=0)
+    trn, tst = np.vsplit(train[np.random.permutation(trn.shape[0])], 2)
+
+    lbls = trn[:, trn.shape[1] - 1]
+    trn = trn[:, :-1]
     # Preprocessing
     scaler = sklearn.preprocessing.StandardScaler()
     trn = scaler.fit_transform(trn)
-    #trn = sklearn.preprocessing.scale(trn)
-    #pca = PCA(n_components=13)
-    #prcomp = pca.fit_transform(trn)
 
     # Classifier fitting
     # Tensorflow nn
     clf = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(input_shape=(1, 26)),
-        tf.keras.layers.Dense(128, activation=tf.nn.relu),
-        tf.keras.layers.Dense(64, activation=tf.nn.relu),
-        tf.keras.layers.Dense(32, activation=tf.nn.relu),
         tf.keras.layers.Dense(16, activation=tf.nn.relu),
+        tf.keras.layers.Dense(8, activation=tf.nn.relu),
         tf.keras.layers.Dense(2, activation=tf.nn.softmax)
     ])
     clf.compile(optimizer='adam',
@@ -52,10 +63,34 @@ def train_mfcc_nn(path_speech, path_music, max_duration):
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
     clf.fit(trn, lbls, epochs=5)
 
-    return clf, scaler  #, pca
+    # Run on test set
+    tst_labels = tst[:,tst.shape[1] - 1]
+    tst = tst[:, :-1]
+    correct = 0
+    incorrect = 0
+
+    for i in tqdm(range(len(tst))):
+        result = predict_nn(clf, scaler, tst[i].reshape(1, -1))
+        if result > 0.5:
+            if tst_labels[i] == 1:
+                correct += 1
+            else:
+                incorrect += 1
+        else:
+            if tst_labels[i] == 0:
+                correct += 1
+            else:
+                incorrect += 1
+
+    print("Results for test set: ", str(correct / (correct + incorrect)))
+
+
+    return clf, scaler
 
 def predict_nn(clf, scaler, mfcc_in):
     mfcc_in = scaler.transform(mfcc_in)
+
+    # big TODO there is currently more than 1 sample per prediction call!!! Shouldn't we just predict one  sample at a time?
     mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
     prediction = clf.predict(mfcc_in)
     result = np.greater(prediction[:, 1], prediction[:, 0])
@@ -118,7 +153,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
         # Append the current file to the list of processed files in order to avoid double processing of the same file
         processed_files.append(speech_files[i])
         # Read the current MFCCs
-        current_mfccs = read_mfcc(speech_files[i])
+        current_mfccs = get_mfcc(speech_files[i])
         for j in range(len(current_mfccs)):
             sp_mfccs.append(current_mfccs[j])
 
@@ -170,7 +205,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
         print(str(i) + " of " + str(len(wavs)) + " - processing " + str(wavs[i]))
         processed_files.append(wavs[i])
-        current_mfccs = read_mfcc(wavs[i])
+        current_mfccs = get_mfcc(wavs[i])
 
         # Only append the MFCCs if the number of current MFCCs + the number of MFCCs in the currently processed file
         # do not exceed the total number of MFCCs in the speech set.
@@ -202,18 +237,14 @@ def calculate_mfccs(path_speech, path_music, max_duration):
     return trn, lbls
 
 @jit(cache=True)
-def read_mfcc(wav_file_path):
-    (rate, sig) = wav.read(wav_file_path)
+def read_mfcc(sig, rate):
+    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025, appendEnergy=False)
+    d_mfcc_feat = delta(mfcc_feat, 2)
+
+    return np.append(mfcc_feat, d_mfcc_feat, axis=1)
+
+def get_mfcc(filepath):
+    (rate, sig) = wav.read(filepath)
     # Convert signal to mono
     sig = util.stereo2mono(sig)
-    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025)
-    d_mfcc_feat = delta(mfcc_feat, 2)
-
-    return np.append(mfcc_feat, d_mfcc_feat, axis=1)
-
-@jit(cache=True)
-def read_mfcc_new(sig, rate):
-    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025)
-    d_mfcc_feat = delta(mfcc_feat, 2)
-
-    return np.append(mfcc_feat, d_mfcc_feat, axis=1)
+    return read_mfcc(sig, rate)
