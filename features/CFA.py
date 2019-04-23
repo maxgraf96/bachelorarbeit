@@ -5,7 +5,6 @@ import math
 
 import numpy as np
 import scipy
-import tensorflow as tf
 from numba import jit
 from scipy.signal import stft
 
@@ -17,6 +16,15 @@ Continuous frequency activation feature via http://www.cp.jku.at/research/papers
 
 @jit(nopython=True, cache=True)
 def calculate_peakiness(peaks, minima, act_func):
+    """
+    Calculates the "peakiness" of an activation function. The higher the peakiness, the more frequencies were held out
+    over a period of time.
+    :param peaks: A numpy array containing the indices of the relative maxima of the activation function
+    :param minima: A numpy array containing the indices of the relative minima of the activation function
+    :param act_func: The activation function is a block of the spectrogram summed up along the y-axis
+    :return: The "peakiness" of the activation function
+    """
+
     pvvalues = []
     for peakidx in peaks:
         # find nearest local minimum to the left
@@ -24,7 +32,6 @@ def calculate_peakiness(peaks, minima, act_func):
         search = np.abs(smaller_peak_indices - peakidx)
         if len(search) == 0:
             nearest_idx_l = 0
-            # print("Len = 0 L")
         else:
             nearest_idx_l = smaller_peak_indices[search.argmin()]
         # find nearest local minimum to the right
@@ -32,7 +39,6 @@ def calculate_peakiness(peaks, minima, act_func):
         search = np.abs(greater_peak_indices - peakidx)
         if len(search) == 0:
             nearest_idx_r = 0
-            # print("Len = 0 R")
         else:
             nearest_idx_r = greater_peak_indices[search.argmin()]
 
@@ -45,33 +51,32 @@ def calculate_peakiness(peaks, minima, act_func):
 
     pvvalues = np.array(pvvalues)
     pvvalues[::-1].sort()  # sort descending
-    finals = pvvalues[0:5]
+    finals = pvvalues[0:5] # Take the 5 highest values for the final result
     peakiness = np.sum(finals)
     return peakiness
 
 
-#@jit(cache=True)
-def calculation(spec):
-    # EQ the speech frequencies out (in the range 300Hz - 3000Hz)
-    # spec = np.delete(spec, np.s_[27:280], axis=0)
-    # np.multiply(spec[27:280, :], 0.001)
+def calculate_from_spectrogram(spectrogram):
+    """
+    Calculates the CFA value from a spectrogram
+    :param spectrogram: A numpy array containing the spectrogram data
+    :return: The CFA value
+    """
 
     # Binarize
-    spec = np.where(spec > 10, 1, 0)
+    spectrogram = np.where(spectrogram > 10, 1, 0)
 
     # Create blocks consisting of 3 frames each
-    no_blocks = math.ceil(spec.shape[1] / 3)
-    blocks = []
+    no_blocks = math.ceil(spectrogram.shape[1] / 3)
     peakis = []  # in the end this list contains the peakiness values for all blocks
     for step in range(no_blocks):
         start = step * 3
         end = start + 3
-        if end > spec.shape[1]:
-            end = spec.shape[1]
-        block = spec[:, start:end]
-        blocks.append(block)
+        if end > spectrogram.shape[1]:
+            end = spectrogram.shape[1]
+        block = spectrogram[:, start:end]
 
-        # Compute the frequency activation function for each block
+        # Compute the frequency activation function
         act_func = np.sum(block, axis=1) / block.shape[1]
 
         # Detect strong peaks
@@ -91,20 +96,14 @@ def calculate_cfa(file=None, spec=None):
     if file is None and spec is None:
         raise ValueError("Either a file for conversion or a spectrogram must be passed to this function.")
     elif file is not None and spec is None:
-        spec = Processing.cfa_grad_preprocessing(file)
+        spec = Processing.cfa_preprocessing(file)
 
-    result = calculation(spec)
+    result = calculate_from_spectrogram(spec)
 
     tend = time.time()
-    print("CFA extrema calculation: ", str(tend - tstart))
+    #print("CFA extrema calculation: ", str(tend - tstart))
 
     return result
-    # N = 21
-    # for j in range(spec.shape[0]):
-    #     k = 0 if j < 10 else 10
-    #     l = 10 if j + 10 < spec.shape[0] else spec.shape[0] - j
-    #     current_sum = np.sum(spec[(j - k):(j + l), :], axis=0)
-    #     spec[j, :] = spec[j, :] - ((1 / N) * current_sum)
 
 
 def calculate_cfas(path_speech, path_music, max_cfas):

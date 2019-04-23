@@ -1,15 +1,16 @@
+import joblib
+import numpy as np
 import sklearn.metrics
 
 import Processing
 import util
-from features import GRAD, CFA
+from features import CFA, MFCC
 import sklearn.metrics
 from tqdm import tqdm
 import tensorflow as tf
 
 import Processing
 import util
-from features import GRAD
 
 labels = [0, 1]
 target_names = ["Speech", "Music"]
@@ -20,8 +21,9 @@ def main():
     y_true = []
 
     print("Loading models...")
-    # GRAD Tensorflow nn
-    clf_grad = tf.keras.models.load_model('clf_grad.h5')
+    # MFCC Tensorflow nn
+    clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
+    scaler_mfcc = joblib.load("scaler_mfcc.joblib")
 
     print("Preparing random subset of training data...")
     # Prepare random subset of data for abl and cfa
@@ -39,37 +41,29 @@ def main():
         data.append(m_file)
         y_true.append(1)
 
-    print("Evaluating GRAD Feature...")
-    # evaluate_grad(data, y_true, clf_grad)
+    print("Evaluating MFCC Feature...")
+    evaluate_mfcc(data, y_true, clf_mfcc, scaler_mfcc)
 
     # print("Evaluating CFA Feature...")
     # evaluate_cfa(data, y_true, thresholds=[0.9, 0.95, 1, 1.05, 1.1, 1.15, 1.2])
-    evaluate_cfa(data, y_true, thresholds=[1.2, 1.5, 1.8, 2.2, 2.4, 2.6, 3, 3.2, 3.4, 3.6, 3.8])
+    #evaluate_cfa(data, y_true, thresholds=[1.2, 1.5, 1.8, 2.2, 2.4, 2.6, 3, 3.2, 3.4, 3.6, 3.8])
 
-def evaluate_grad(x_tst, y_true, clf):
-    y_grads = []
+def evaluate_mfcc(x_tst, y_true, clf, scaler):
+    y_mfccs = []
     for file in tqdm(x_tst):
-        # Calculate the spectrogram
-        spectrogram = Processing.cfa_grad_preprocessing(file)
-
         # GRAD classification
-        grads = GRAD.calculate_grad(file, spectrogram)
-        zeroes = 0
-        ones = 0
-        for grad in grads:
-            result = GRAD.predict_nn(clf, grad)
-            if result[0][0] > result[0][1]:
-                zeroes += 1
-            else:
-                ones += 1
-        if zeroes > ones:
-            y_grads.append(0)
+        mfcc = MFCC.read_mfcc_from_file(file)
+        result = MFCC.predict_nn(clf, scaler, mfcc)
+        ones = np.count_nonzero(result)
+        total = ones / len(result)
+        if total < 0.5:
+            y_mfccs.append(0)
         else:
-            y_grads.append(1)
+            y_mfccs.append(1)
 
-    print("Evaluation for GRAD feature:")
+    print("Evaluation for MFCC feature:")
 
-    y_pred = y_grads
+    y_pred = y_mfccs
 
     report = sklearn.metrics.classification_report(y_true, y_pred, labels, target_names)
     confusion_matrix = sklearn.metrics.confusion_matrix(y_true, y_pred, labels)
@@ -88,7 +82,7 @@ def evaluate_cfa(x_tst, y_true, thresholds):
         #print("Current file: " + file)
 
         # Calculate the spectrogram
-        spectrogram = Processing.cfa_grad_preprocessing(file)
+        spectrogram = Processing.cfa_preprocessing(file)
 
         # CFA classification
         cfa = CFA.calculate_cfa(file, spectrogram)

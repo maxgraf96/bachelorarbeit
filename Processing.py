@@ -40,7 +40,7 @@ def preprocessing_new(wav_path):
 
 
 @jit(cache=True)
-def cfa_grad_filerate_preprocessing(file):
+def cfa_filerate_preprocessing(file):
     """
     Filter rate preprocessing for CFA and GRAD
     :param file: The file to preprocess. The function checks if an 11kHz file exists and if not, converts the given file
@@ -65,9 +65,9 @@ def cfa_grad_filerate_preprocessing(file):
 
 
 @jit(cache=True)
-def cfa_grad_preprocessing(file):
+def cfa_preprocessing(file):
     start = time.time()
-    file = cfa_grad_filerate_preprocessing(file)
+    file = cfa_filerate_preprocessing(file)
 
     end = time.time()
     (rate, signal) = wav.read(file)
@@ -86,6 +86,6 @@ def cfa_grad_preprocessing(file):
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=256)
 
-    print("CFA_GRAD PREPROCESSING took ", str(end-start))
+    print("CFA PREPROCESSING took ", str(end-start))
     return spectrogram
 
