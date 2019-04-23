@@ -17,7 +17,7 @@ import radiorec
 import util
 from features import MFCC, CFA
 
-station = "fm4"
+station = "oe1"
 cl_arguments = sys.argv[1:]
 
 # Command line arguments check
@@ -39,20 +39,20 @@ def decide(results):
     cfa_value = 0.2
 
     mfcc = results["mfcc"][0] if is_mfcc else 0
-    cfa = results["cfa"][0] if is_cfa else 0
+    cfa_result = results["cfa"][0] if is_cfa else 0
 
     # If MFCC is sure about music, reduce the CFA influence
     if mfcc > 0.9 and is_cfa:
         cfa_value = 0.1
 
     if is_cfa:
-        if cfa > cfa_threshold:
+        if cfa_result > cfa_threshold:
             cfa = cfa_value
-            if cfa > cfa_threshold + 0.5:
+            if cfa_result > cfa_threshold + 0.5:
                 cfa += cfa_value
         else:
             cfa = -cfa_value
-            if cfa < cfa_threshold - 0.5:
+            if cfa_result < cfa_threshold - 0.5:
                 cfa -= cfa_value
 
     final_result = mfcc + cfa
