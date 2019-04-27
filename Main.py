@@ -17,7 +17,11 @@ import radiorec
 import util
 from features import MFCC, CFA
 
-station = "oe1"
+station = "fm4"
+
+# Livestream or from file
+live_stream = True
+
 cl_arguments = sys.argv[1:]
 
 # Command line arguments check
@@ -25,10 +29,7 @@ is_mfcc = "mfcc" in cl_arguments
 is_cfa = "cfa" in cl_arguments
 
 # CFA threshold
-cfa_threshold = 3.4
-
-# Livestream or from file
-live_stream = False
+cfa_threshold = 3.2
 
 def clear_streams():
     # clear previous streams
@@ -36,26 +37,15 @@ def clear_streams():
         p.unlink()
 
 def decide(results):
-    cfa_value = 0.2
-
     mfcc = results["mfcc"][0] if is_mfcc else 0
     cfa_result = results["cfa"][0] if is_cfa else 0
+    bias = 0
 
-    # If MFCC is sure about music, reduce the CFA influence
-    if mfcc > 0.9 and is_cfa:
-        cfa_value = 0.1
+    # Add bias
+    if mfcc > 0.5:
+        bias += 0.2
 
-    if is_cfa:
-        if cfa_result > cfa_threshold:
-            cfa = cfa_value
-            if cfa_result > cfa_threshold + 0.5:
-                cfa += cfa_value
-        else:
-            cfa = -cfa_value
-            if cfa_result < cfa_threshold - 0.5:
-                cfa -= cfa_value
-
-    final_result = mfcc + cfa
+    final_result = (mfcc + cfa_result) / 2 + bias
 
     return final_result
 
@@ -89,9 +79,9 @@ def calc_from_stream(clf_mfcc, scaler_mfcc):
 
         if is_cfa:
             # CFA classification
-            cfa = CFA.calculate_cfa(spec=np.copy(spectrogram))  # np.copy() because numpy arrays are mutable
+            cfa, peakis = CFA.calculate_cfa(spec=spectrogram)
             result_cfa = [-1]
-            thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa, cfa_threshold))
+            thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa))
 
         if is_mfcc:
             thread_mfcc.start()
@@ -142,8 +132,8 @@ def calc_from_stream(clf_mfcc, scaler_mfcc):
         mixer.music.play()
 
         # Clear previous streams on every 10th iteration
-        if i % 10 == 0:
-            clear_streams()
+        # if i % 10 == 0:
+        #     clear_streams()
 
         i += 1
 
@@ -192,10 +182,10 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
             startidx = math.floor(spectrogram.shape[1] * i / half_seconds)
             endidx = math.ceil(spectrogram.shape[1] * (i + 1) / half_seconds)
             # CFA classification
-            cfa = CFA.calculate_cfa(spec=np.copy(
+            cfa, peakis = CFA.calculate_cfa(spec=np.copy(
                 spectrogram[:, startidx:endidx]))  # np.copy() because numpy arrays are mutable
             result_cfa = [-1]
-            thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa, cfa_threshold))
+            thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa))
 
         if is_mfcc:
             thread_mfcc.start()
@@ -210,7 +200,6 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
             results["cfa"] = result_cfa
 
         # Make a decision and add to blocks
-
         final_result = decide(results)
 
         # Add to successive blocks
@@ -225,23 +214,6 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
         print("FINAL RESULT: ", final_result, " => " + result_str)
         print("Successive music blocks: ", succ_music)
         print("Successive speech blocks: ", succ_speech)
-
-        # Fadeout the track if the currently played type does not correspond to what we want to hear
-        # if "music" in cl_arguments:
-        #     if succ_speech > 2 and not is_replacement:
-        #         mixer.music.fadeout(300)
-        #         ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
-        #         mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
-        #         mixer.music.play()
-        #         is_replacement = True
-        #     if succ_music > 2 and is_replacement:
-        #         is_replacement = False
-        #         mixer.music.fadeout(300)
-        #
-        # if not is_replacement:
-        #     # Play audio stream
-        #     mixer.music.load(ac.mp3_to_22_khz_wav(path))
-        #     mixer.music.play()
 
         i += 1
 
@@ -266,7 +238,7 @@ def main():
     if len(glob.glob("clf_mfcc.h5")) < 1:
         print("Saving model...")
         # Tensorflow nn
-        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 15000, test=False)
+        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech/gtzan", util.ext_hdd_path + "data/music/gtzan", 20000, test=False)
         clf_mfcc.save('clf_mfcc.h5')
         dump(scaler_mfcc, "scaler_mfcc.joblib")
 

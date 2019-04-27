@@ -93,8 +93,8 @@ def my_record_worker(stoprec, station, target_dir, linux_public, fileName, durat
             os.chmod(filename, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP |
                      stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH)
 
-        # Assuming a 128kbps stream, 16000 bytes are one second of music
-        length = int(16000 * duration)
+        # Assuming a 192kbps stream, 24000 bytes are one second of music
+        length = int(24000 * duration)
         target.write(conn.read(length))
 
 

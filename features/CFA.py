@@ -27,14 +27,14 @@ def calculate_peakiness(peaks, minima, act_func):
 
     pvvalues = []
     for peakidx in peaks:
-        # find nearest local minimum to the left
+        # Find nearest local minimum to the left
         smaller_peak_indices = minima[minima < peakidx]
         search = np.abs(smaller_peak_indices - peakidx)
         if len(search) == 0:
             nearest_idx_l = 0
         else:
             nearest_idx_l = smaller_peak_indices[search.argmin()]
-        # find nearest local minimum to the right
+        # Find nearest local minimum to the right
         greater_peak_indices = minima[minima > peakidx]
         search = np.abs(greater_peak_indices - peakidx)
         if len(search) == 0:
@@ -56,7 +56,7 @@ def calculate_peakiness(peaks, minima, act_func):
     return peakiness
 
 
-def calculate_from_spectrogram(spectrogram):
+def calculate_from_spectrogram(spectrogram, threshold):
     """
     Calculates the CFA value from a spectrogram
     :param spectrogram: A numpy array containing the spectrogram data
@@ -85,12 +85,11 @@ def calculate_from_spectrogram(spectrogram):
         peakis.append(calculate_peakiness(peaks, minima, act_func))
 
 
-    result = np.sum(peakis) / len(peakis)
-    return result
+    result = np.where(np.array(peakis) > threshold, 1, 0)
+    result = np.count_nonzero(result) / len(result)
+    return result, np.array(peakis)
 
-def calculate_cfa(file=None, spec=None):
-
-    tstart = time.time()
+def calculate_cfa(file=None, spec=None, threshold=3.4):
 
     # Get the spectrogram
     if file is None and spec is None:
@@ -98,12 +97,8 @@ def calculate_cfa(file=None, spec=None):
     elif file is not None and spec is None:
         spec = Processing.cfa_preprocessing(file)
 
-    result = calculate_from_spectrogram(spec)
-
-    tend = time.time()
-    #print("CFA extrema calculation: ", str(tend - tstart))
-
-    return result
+    result, peakis = calculate_from_spectrogram(spec, threshold)
+    return result, peakis
 
 
 def calculate_cfas(path_speech, path_music, max_cfas):

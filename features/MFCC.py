@@ -232,7 +232,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
 @jit(cache=True)
 def read_mfcc(sig, rate):
-    mfcc_feat = mfcc(sig, rate, nfft=1386, winlen=0.025, appendEnergy=False)
+    mfcc_feat = mfcc(sig, rate, appendEnergy=False)
     d_mfcc_feat = delta(mfcc_feat, 2)
 
     return np.append(mfcc_feat, d_mfcc_feat, axis=1)

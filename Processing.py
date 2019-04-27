@@ -22,7 +22,7 @@ def preprocessing_new(wav_path):
     sig[sig < noise_gate_level] = 0
 
     # Estimate the spectrogram using a Hanning window
-    window = np.hanning(256)  # 1024 samples correspond to ~ 100ms
+    window = np.hanning(256)  # 256 samples correspond to ~ 25ms
 
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=256)
@@ -31,7 +31,7 @@ def preprocessing_new(wav_path):
         raise ValueError(
             "The sampling rate of the incoming signal is too low for Continuous Frequency Activation and GRAD processing.")
 
-    # Cut the spectrogram to 11khz for cfa and grad processing
+    # Cut the spectrogram to 11khz for cfa processing
     # NOTE: Assuming that the frequencies are distributed linearly along the spectrogram
     upper_limit_idx = np.argmin(np.abs(frequencies - (11025 / 2)))
     spectrogram = spectrogram[:upper_limit_idx, :]
@@ -77,8 +77,8 @@ def cfa_preprocessing(file):
     sig = util.stereo2mono(sig)
 
     # Apply noise gate
-    noise_gate_level = 0.5
-    sig[sig < noise_gate_level] = 0
+    # noise_gate_level = 0.5
+    # sig[sig < noise_gate_level] = 0
 
     # Estimate the spectrogram using a Hanning window
     window = np.hanning(256)  # 1024 samples correspond to ~ 100ms
@@ -86,6 +86,6 @@ def cfa_preprocessing(file):
     # Calculate the spectrogram using stft and emphasize local maxima
     frequencies, times, spectrogram = scipy.signal.stft(sig, fs=rate, window=window, nperseg=256)
 
-    print("CFA PREPROCESSING took ", str(end-start))
+    # print("CFA PREPROCESSING took ", str(end-start))
     return spectrogram
 

@@ -20,12 +20,7 @@ def print_mfcc(mfcc, clf, scaler_mfcc, duration, result_mfcc, splits=9):
     print("MFCC Music: ", str(result))
 
 
-def print_cfa(cfa, result_cfa, threshold=1.24):
-    if cfa < threshold:
-        res = "Speech"
-    else:
-        res = "Music"
-
+def print_cfa(cfa, result_cfa):
     result = round(cfa, 4)
     result_cfa[0] = result
-    print("CFA: " + str(result) + " - " + res)
+    print("CFA Music: " + str(result))
