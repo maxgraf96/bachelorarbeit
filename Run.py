@@ -31,7 +31,7 @@ def run():
     # Persist classifier if it does not exist
     if len(glob.glob("clf_mfcc.h5")) < 1:
         print("Saving model...")
-        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 20000, test=False)
+        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.data_path + "data/speech", util.data_path + "data/music", 20000, test=False)
         clf_mfcc.save('clf_mfcc.h5')
         joblib.dump(scaler_mfcc, "scaler_mfcc.joblib")
 

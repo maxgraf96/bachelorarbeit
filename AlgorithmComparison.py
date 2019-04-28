@@ -18,13 +18,13 @@ import util
 # Load dataset
 from features import MFCC
 
-if len(glob.glob(util.ext_hdd_path + "data/mfcc_trn_gtzan.joblib")) < 1:
-    X, Y = MFCC.calculate_mfccs(util.ext_hdd_path + "data/speech/gtzan", util.ext_hdd_path + "data/music/gtzan", max_duration=1800)
-    joblib.dump(X, util.ext_hdd_path + "data/mfcc_trn_gtzan.joblib")
-    joblib.dump(X, util.ext_hdd_path + "data/mfcc_lbls_gtzan.joblib")
+if len(glob.glob(util.data_path + "data/mfcc_trn_gtzan.joblib")) < 1:
+    X, Y = MFCC.calculate_mfccs(util.data_path + "data/speech/gtzan", util.data_path + "data/music/gtzan", max_duration=1800)
+    joblib.dump(X, util.data_path + "data/mfcc_trn_gtzan.joblib")
+    joblib.dump(X, util.data_path + "data/mfcc_lbls_gtzan.joblib")
 else:
-    X = joblib.load(util.ext_hdd_path + "data/mfcc_trn_gtzan.joblib")
-    Y = joblib.load(util.ext_hdd_path + "data/mfcc_lbls_gtzan.joblib")
+    X = joblib.load(util.data_path + "data/mfcc_trn_gtzan.joblib")
+    Y = joblib.load(util.data_path + "data/mfcc_lbls_gtzan.joblib")
 
 # Prepare configuration for cross validation test harness
 seed = 7
@@ -69,7 +69,7 @@ else:
         current_score = result["test_score"]
 
         print(names[i])
-        print("Average test score:", round(current_score.mean(), 2), "std: ", round(current_score.std(), 2))
+        print("Average test score:", round(current_score.mean(), 3), "std: ", round(current_score.std(), 3))
         print("Average fitting time (per set):", round(np.mean(result["fit_time"]), 2))
         print("Average score time (per set):", round(np.mean(result["score_time"]), 2))
         print()

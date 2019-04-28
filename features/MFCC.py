@@ -31,13 +31,13 @@ def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
 
     # Use existing training data (= extraced MFCCs). This is to skip the process of recalculating the MFCC each time.
     # WARNING: If the MFCC calculation method is changed, the joblib files must be deleted manually.
-    if len(glob.glob(util.ext_hdd_path + "data/mfcc_trn.joblib")) < 1:
+    if len(glob.glob(util.data_path + "data/mfcc_trn.joblib")) < 1:
         trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
-        joblib.dump(trn, util.ext_hdd_path + "data/mfcc_trn.joblib")
-        joblib.dump(lbls, util.ext_hdd_path + "data/mfcc_lbls.joblib")
+        joblib.dump(trn, util.data_path + "data/mfcc_trn.joblib")
+        joblib.dump(lbls, util.data_path + "data/mfcc_lbls.joblib")
     else:
-        trn = joblib.load(util.ext_hdd_path + "data/mfcc_trn.joblib")
-        lbls = joblib.load(util.ext_hdd_path + "data/mfcc_lbls.joblib")
+        trn = joblib.load(util.data_path + "data/mfcc_trn.joblib")
+        lbls = joblib.load(util.data_path + "data/mfcc_lbls.joblib")
 
     if test:
         # Attach labels to data for random shuffling
