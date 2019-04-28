@@ -10,7 +10,7 @@ def mp3_to_16_khz_wav(src):
 
     sound = AudioSegment.from_mp3(src)
     sound = sound.set_channels(1).set_frame_rate(16000)
-    converted = src[:-3] + "wav"
+    converted = src[:-3] + "_16_kHz.wav"
     sound.export(converted, format="wav")
     return converted
 

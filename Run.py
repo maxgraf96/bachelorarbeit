@@ -10,7 +10,7 @@ import radiorec
 import util
 from features import MFCC
 
-station = "oe1"
+station = "fm4"
 
 # Livestream or from file
 live_stream = False
@@ -28,18 +28,15 @@ def run():
     # Clear previous streams
     Main.clear_streams()
 
-    # persist classifiers if they do not exist
-    # MFCC
+    # Persist classifier if it does not exist
     if len(glob.glob("clf_mfcc.h5")) < 1:
         print("Saving model...")
-        # Tensorflow nn
-        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech/gtzan", util.ext_hdd_path + "data/music/gtzan", 20000, test=False)
+        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech", util.ext_hdd_path + "data/music", 20000, test=False)
         clf_mfcc.save('clf_mfcc.h5')
         joblib.dump(scaler_mfcc, "scaler_mfcc.joblib")
 
     else:
         print("Restoring models...")
-        # MFCC Tensorflow nn
         clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
         scaler_mfcc = joblib.load("scaler_mfcc.joblib")
 

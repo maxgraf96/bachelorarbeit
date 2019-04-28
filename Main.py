@@ -22,13 +22,14 @@ cfa_threshold = 3.2
 def decide(results):
     mfcc = results["mfcc"][0] if "mfcc" in results else 0
     cfa_result = results["cfa"][0] if "cfa" in results else 0
+    divisor = 2 if "mfcc" in results and "cfa" in results else 1
     bias = 0
 
     # Add bias
     if mfcc > 0.5:
         bias += 0.2
 
-    final_result = (mfcc + cfa_result) / 2 + bias
+    final_result = (mfcc + cfa_result) / divisor + bias
 
     return final_result
 
