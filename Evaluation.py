@@ -2,9 +2,11 @@ import glob
 
 import joblib
 import numpy as np
+import scipy
 import sklearn.metrics
 import matplotlib.pyplot as plt
 
+import Main
 import Processing
 import util
 from features import CFA, MFCC
@@ -22,15 +24,59 @@ speech_path = "data/test/speech"
 music_path = "data/test/music"
 plots_path = "plots/"
 
-runs = 1
-samples = 200
-
-def main():
+def run():
     print("Loading models...")
     # MFCC Tensorflow nn
     clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
     scaler_mfcc = joblib.load("scaler_mfcc.joblib")
 
+    runs = 1
+    samples = 200
+
+    # evaluate_features(runs, samples)
+
+    evaluate_muspeak_mirex_folder(clf_mfcc, scaler_mfcc)
+
+def evaluate_muspeak_mirex_folder(clf_mfcc, scaler_mfcc):
+
+    names = [
+        "ConscinciasParalelasN3-OsSentidosOSentirEAsNormasParte318-10-1994",
+        "ConscinciasParalelasN7-OsSentidosOSentirEAsNormasParte715-1-1994",
+        "ConscinciasParalelasN11-OEspelhoEOReflexoFantasiasEPerplexidadesParte413-12-1994",
+        "eatmycountry1609",
+        "theconcert2_v2",
+        "theconcert16",
+        "UTMA-26_v2"
+    ]
+
+    accuracy = 0
+    for name in names:
+        accuracy += evaluate_muspeak_mirex(ext_hdd_path + "data/test/muspeak-mirex2015-detection-examples/" + name + ".csv", name, clf_mfcc, scaler_mfcc)
+
+    print("Mean accuracy: ", accuracy / len(names))
+
+def evaluate_muspeak_mirex(csv_path, filename, clf, scaler):
+
+    print("Evaluating", filename)
+    if len(glob.glob("plots/speech_music_maps/" + filename + ".csv")) < 1:
+        Main.calc_from_file(csv_path[:-4] + ".mp3", filename, clf, scaler, is_mfcc=True, is_cfa=True)
+
+    truth = util.load_and_convert_muspeak_mirex_csv(csv_path)[:, 1]
+    estimation = util.load_speech_music_map_csv("plots/speech_music_maps/" + filename + ".csv")[:, 1]
+
+    if truth.shape[0] > estimation.shape[0]:
+        truth = truth[:estimation.shape[0]]
+    else:
+        estimation = estimation[:truth.shape[0]]
+
+    equal = np.sum(truth == estimation)
+    print(equal, "/", len(truth), " values are equal.")
+    print("That's a similarity of ", equal / len(truth), "%")
+    print()
+
+    return equal / len(truth)
+
+def evaluate_features(runs, samples):
     for it in range(runs):
         data = []
         y_true = []
@@ -144,4 +190,4 @@ def evaluate_cfa(x_tst, y_true, thresholds, iteration):
         print("----------------------------------------------------------------- \n\n")
 
 
-main()
+run()

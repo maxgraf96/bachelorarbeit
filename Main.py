@@ -6,7 +6,6 @@ from pathlib import Path
 
 import math
 import numpy as np
-import tensorflow as tf
 from pygame import mixer
 from joblib import dump, load
 
@@ -17,28 +16,12 @@ import radiorec
 import util
 from features import MFCC, CFA
 
-station = "fm4"
-
-# Livestream or from file
-live_stream = True
-
-cl_arguments = sys.argv[1:]
-
-# Command line arguments check
-is_mfcc = "mfcc" in cl_arguments
-is_cfa = "cfa" in cl_arguments
-
 # CFA threshold
 cfa_threshold = 3.2
 
-def clear_streams():
-    # clear previous streams
-    for p in Path("data/test").glob("*"):
-        p.unlink()
-
 def decide(results):
-    mfcc = results["mfcc"][0] if is_mfcc else 0
-    cfa_result = results["cfa"][0] if is_cfa else 0
+    mfcc = results["mfcc"][0] if "mfcc" in results else 0
+    cfa_result = results["cfa"][0] if "cfa" in results else 0
     bias = 0
 
     # Add bias
@@ -49,9 +32,12 @@ def decide(results):
 
     return final_result
 
-def calc_from_stream(clf_mfcc, scaler_mfcc):
+def calc_from_stream(station, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa, listening_preference):
+    mixer.init()
     succ_speech = 0
     succ_music = 0
+    # Flag for checking if currently playing replacement
+    is_replacement = False
     i = 0
     while True:
         results = {}
@@ -112,24 +98,24 @@ def calc_from_stream(clf_mfcc, scaler_mfcc):
         print("Successive speech blocks: ", succ_speech)
 
         # Fadeout the track if the currently played type does not correspond to what we want to hear
-        # if "music" in cl_arguments:
-        #     if succ_speech > 2 and not is_replacement:
-        #         mixer.music.fadeout(300)
-        #         ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
-        #         mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
-        #         mixer.music.play()
-        #         is_replacement = True
-        #     if succ_music > 2 and is_replacement:
-        #         is_replacement = False
-        #         mixer.music.fadeout(300)
-        #
-        # if not is_replacement:
-        #     # Play audio stream
-        #     mixer.music.load(ac.mp3_to_22_khz_wav(path))
-        #     mixer.music.play()
+        if listening_preference == "music":
+            if succ_speech > 4 and not is_replacement:
+                mixer.music.fadeout(300)
+                ac.mp3_to_22_khz_wav("data/replacements/klangcollage.mp3")
+                mixer.music.load("data/replacements/klangcollage_22_kHz.wav")
+                mixer.music.play()
+                is_replacement = True
+            if succ_music > 4 and is_replacement:
+                is_replacement = False
+                mixer.music.fadeout(300)
 
-        mixer.music.load(wav_path)
-        mixer.music.play()
+        if not is_replacement:
+            # Play audio stream
+            mixer.music.load(ac.mp3_to_22_khz_wav(path))
+            mixer.music.play()
+
+        # mixer.music.load(wav_path)
+        # mixer.music.play()
 
         # Clear previous streams on every 10th iteration
         # if i % 10 == 0:
@@ -142,12 +128,11 @@ def calc_from_stream(clf_mfcc, scaler_mfcc):
         print("Elapsed Time: ", str(end - start))
         print()
 
-def calc_from_file(clf_mfcc, scaler_mfcc):
+def calc_from_file(file, filename, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa):
+    speech_music_map = []
     succ_speech = 0
     succ_music = 0
-    file = "stream_long"
-    radiorec.my_record(station, 15, file)
-    path = "data/test/" + file + ".mp3"
+    path = file
     wav_path = ac.mp3_to_16_khz_wav(path)
 
     # Preprocess audio
@@ -155,6 +140,7 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
 
     half_seconds = math.ceil(util.get_wav_duration(wav_path) * 2)
 
+    mixer.init()
     mixer.music.load(wav_path)
     mixer.music.play()
 
@@ -206,9 +192,11 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
         if final_result > 0.5:
             succ_music += 1
             succ_speech = 0
+            speech_music_map.append(1)
         else:
             succ_speech += 1
             succ_music = 0
+            speech_music_map.append(0)
 
         result_str = "SPEECH" if final_result <= 0.5 else "MUSIC"
         print("FINAL RESULT: ", final_result, " => " + result_str)
@@ -224,38 +212,15 @@ def calc_from_file(clf_mfcc, scaler_mfcc):
         print("Elapsed Time: ", str(elapsed))
         print()
 
+    x = np.arange(len(speech_music_map)) / 2  # Convert from samples (every 0.5s to seconds)
+    util.plot_speech_music_map(filename, x, speech_music_map)
+
     print("Average time per iteration: ", str(time_per_iteration / i))
 
-def main():
-    # Clear previous streams
-    clear_streams()
+    return x, speech_music_map
 
-    # init
-    mixer.init()
-
-    # persist classifiers if they do not exist
-    # MFCC
-    if len(glob.glob("clf_mfcc.h5")) < 1:
-        print("Saving model...")
-        # Tensorflow nn
-        clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.ext_hdd_path + "data/speech/gtzan", util.ext_hdd_path + "data/music/gtzan", 20000, test=False)
-        clf_mfcc.save('clf_mfcc.h5')
-        dump(scaler_mfcc, "scaler_mfcc.joblib")
-
-    else:
-        print("Restoring models...")
-        # MFCC Tensorflow nn
-        clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
-        scaler_mfcc = load("scaler_mfcc.joblib")
-
-    # Flag for checking if currently playing replacement
-    is_replacement = False
-
-    if live_stream:
-        calc_from_stream(clf_mfcc, scaler_mfcc)
-    else:
-        calc_from_file(clf_mfcc, scaler_mfcc)
-
-
-main()
+def clear_streams():
+    # clear previous streams
+    for p in Path("data/test").glob("*"):
+        p.unlink()
 
