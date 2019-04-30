@@ -66,7 +66,7 @@ def calc_from_stream(station, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa, listening_
 
         if is_cfa:
             # CFA classification
-            cfa, peakis = CFA.calculate_cfa(spec=spectrogram)
+            cfa, peakis = CFA.calculate_cfa(spec=spectrogram, threshold=cfa_threshold)
             result_cfa = [-1]
             thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa))
 
@@ -115,13 +115,6 @@ def calc_from_stream(station, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa, listening_
             mixer.music.load(ac.mp3_to_22_khz_wav(path))
             mixer.music.play()
 
-        # mixer.music.load(wav_path)
-        # mixer.music.play()
-
-        # Clear previous streams on every 10th iteration
-        # if i % 10 == 0:
-        #     clear_streams()
-
         i += 1
 
         # Measure execution time
@@ -169,8 +162,7 @@ def calc_from_file(file, filename, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa):
             startidx = math.floor(spectrogram.shape[1] * i / half_seconds)
             endidx = math.ceil(spectrogram.shape[1] * (i + 1) / half_seconds)
             # CFA classification
-            cfa, peakis = CFA.calculate_cfa(spec=np.copy(
-                spectrogram[:, startidx:endidx]))  # np.copy() because numpy arrays are mutable
+            cfa, peakis = CFA.calculate_cfa(spec=spectrogram[:, startidx:endidx], threshold=cfa_threshold)
             result_cfa = [-1]
             thread_cfa = threading.Thread(target=Output.print_cfa, args=(cfa, result_cfa))
 
@@ -214,7 +206,7 @@ def calc_from_file(file, filename, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa):
         print()
 
     x = np.arange(len(speech_music_map)) / 2  # Convert from samples (every 0.5s to seconds)
-    util.plot_speech_music_map(filename, x, speech_music_map)
+    util.plot_speech_music_map(filename, x, speech_music_map, save_csv=True)
 
     print("Average time per iteration: ", str(time_per_iteration / i))
 

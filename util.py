@@ -47,22 +47,37 @@ def get_random_file(ext, top=os.getcwd()):
 def spec_to_khz_spec(spec, khz):
     return spec[spec < khz, :]
 
-def plot_speech_music_map(filename, x, speech_music_map):
+def plot_speech_music_map(filename, x, speech_music_map, save_csv=False):
     speech_music_map = np.array(speech_music_map)
-    colors = np.where(speech_music_map > 0, "green", "blue")
-    dot_size = 240 / len(speech_music_map)
-    plt.scatter(x, speech_music_map, c=colors, s=dot_size)
-    plt.xlabel("Seconds")
-    plt.ylabel("Class")
+    speech = np.argwhere(speech_music_map == 0)
+    music = np.argwhere(speech_music_map == 1)
+
+    # Set plot dimensions
+    plt.rcParams["figure.figsize"] = [16, 4]
+
+    for idx in speech:
+        plt.axvline(x=idx, color='red', linestyle='-', linewidth=0.1)
+    for idx in music:
+        plt.axvline(x=idx, color='green', linestyle='-', linewidth=0.1)
+
+    plt.figure(1)
+    plt.subplot(111)
+
     plt.title("Speech/music distribution for " + filename)
-    plt.yticks(ticks=[0, 1], labels=["Speech", "Music"])
-    plt.rcParams["figure.figsize"] = [16, 2]
+    plt.xlabel("Seconds / class")
+    plt.ylabel("")
+    plt.yticks(ticks=[0, 1], labels=["", ""])
     plt.grid()
+
     # plt.show()
     plt.savefig("plots/speech_music_maps/" + filename + ".png")
+    # Clear plot
+    plt.clf()
 
-    print("Saving CSV '" + filename + ".csv'")
-    save_speech_music_map_csv([x, speech_music_map], "plots/speech_music_maps/", filename)
+
+    if save_csv:
+        print("Saving CSV '" + filename + ".csv'")
+        save_speech_music_map_csv([x, speech_music_map], "plots/speech_music_maps/", filename)
 
 def save_speech_music_map_csv(columns, path, filename):
     with open(path + filename + '.csv', mode='w') as file:

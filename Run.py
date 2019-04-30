@@ -10,7 +10,7 @@ import radiorec
 import util
 from features import MFCC
 
-station = "fm4"
+station = "oe1"
 
 # Livestream or from file
 live_stream = False
@@ -20,9 +20,6 @@ cl_arguments = sys.argv[1:]
 # Command line arguments check
 is_mfcc = "mfcc" in cl_arguments
 is_cfa = "cfa" in cl_arguments
-
-# CFA threshold
-cfa_threshold = 3.2
 
 def run():
     # Clear previous streams

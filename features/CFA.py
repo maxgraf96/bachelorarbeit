@@ -6,7 +6,6 @@ import math
 import numpy as np
 import scipy
 from numba import jit
-from scipy.signal import stft
 
 import Processing
 
@@ -60,13 +59,14 @@ def calculate_from_spectrogram(spectrogram, threshold):
     """
     Calculates the CFA value from a spectrogram
     :param spectrogram: A numpy array containing the spectrogram data
+    :param threshold: The threshold value for the distinction of the two classes
     :return: The CFA value
     """
 
     # Binarize
     spectrogram = np.where(spectrogram > 10, 1, 0)
 
-    # Create blocks consisting of 3 frames each
+    # Create blocks
     no_blocks = math.ceil(spectrogram.shape[1] / 3)
     peakis = []  # in the end this list contains the peakiness values for all blocks
     for step in range(no_blocks):
@@ -80,16 +80,17 @@ def calculate_from_spectrogram(spectrogram, threshold):
         act_func = np.sum(block, axis=1) / block.shape[1]
 
         # Detect strong peaks
-        peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because we only want the indices
+        peaks = scipy.signal.argrelextrema(act_func, np.greater)[0]  # [0] because only the indices are necessary
         minima = scipy.signal.argrelextrema(act_func, np.less)[0]
         peakis.append(calculate_peakiness(peaks, minima, act_func))
 
-
+    # Binarize the values of the summated peaks
     result = np.where(np.array(peakis) > threshold, 1, 0)
+    # The final result is the percentage of detected "music"
     result = np.count_nonzero(result) / len(result)
     return result, np.array(peakis)
 
-def calculate_cfa(file=None, spec=None, threshold=3.4):
+def calculate_cfa(file=None, spec=None, threshold=3.82):
 
     # Get the spectrogram
     if file is None and spec is None:

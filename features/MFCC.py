@@ -29,7 +29,7 @@ def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
     :return: The trained classifier and the scaler used to scale the training data
     """
 
-    # Use existing training data (= extraced MFCCs). This is to skip the process of recalculating the MFCC each time.
+    # Use existing training data (= extracted MFCCs). This is to skip the process of recalculating the MFCC each time.
     # WARNING: If the MFCC calculation method is changed, the joblib files must be deleted manually.
     if len(glob.glob(util.data_path + "data/mfcc_trn.joblib")) < 1:
         trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
@@ -39,20 +39,20 @@ def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
         trn = joblib.load(util.data_path + "data/mfcc_trn.joblib")
         lbls = joblib.load(util.data_path + "data/mfcc_lbls.joblib")
 
-    if test:
-        # Attach labels to data for random shuffling
-        train = np.empty(shape=(trn.shape[0], trn.shape[1] + 1))
-        train[:, :trn.shape[1]] = trn
-        train[:, train.shape[1] - 1] = lbls
-
-        # Split randomly into training and test with a ratio of 50/50
-        if trn.shape[0] % 2 is not 0:
-            trn = np.delete(trn, trn.shape[0] - 1, axis=0)
-        trn, tst = np.vsplit(train[np.random.permutation(trn.shape[0])], 2)
-
-        # Detach labels from training data
-        lbls = trn[:, trn.shape[1] - 1]
-        trn = trn[:, :-1]
+    # if test:
+    #     # Attach labels to data for random shuffling
+    #     train = np.empty(shape=(trn.shape[0], trn.shape[1] + 1))
+    #     train[:, :trn.shape[1]] = trn
+    #     train[:, train.shape[1] - 1] = lbls
+    #
+    #     # Split randomly into training and test with a ratio of 50/50
+    #     if trn.shape[0] % 2 is not 0:
+    #         trn = np.delete(trn, trn.shape[0] - 1, axis=0)
+    #     trn, tst = np.vsplit(train[np.random.permutation(trn.shape[0])], 2)
+    #
+    #     # Detach labels from training data
+    #     lbls = trn[:, trn.shape[1] - 1]
+    #     trn = trn[:, :-1]
 
     # Preprocessing
     scaler = sklearn.preprocessing.StandardScaler()
@@ -71,27 +71,27 @@ def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
     clf.fit(trn, lbls, epochs=5)
 
-    if test:
-        # Run on test set
-        tst_labels = tst[:,tst.shape[1] - 1]
-        tst = tst[:, :-1]
-        correct = 0
-        incorrect = 0
-
-        for i in tqdm(range(len(tst))):
-            result = predict_nn(clf, scaler, tst[i].reshape(1, -1))
-            if result >= 0.5:
-                if tst_labels[i] == 1:
-                    correct += 1
-                else:
-                    incorrect += 1
-            else:
-                if tst_labels[i] == 0:
-                    correct += 1
-                else:
-                    incorrect += 1
-
-        print("Results for test set: ", str(correct / (correct + incorrect)))
+    # if test:
+    #     # Run on test set
+    #     tst_labels = tst[:,tst.shape[1] - 1]
+    #     tst = tst[:, :-1]
+    #     correct = 0
+    #     incorrect = 0
+    #
+    #     for i in tqdm(range(len(tst))):
+    #         result = predict_nn(clf, scaler, tst[i].reshape(1, -1))
+    #         if result >= 0.5:
+    #             if tst_labels[i] == 1:
+    #                 correct += 1
+    #             else:
+    #                 incorrect += 1
+    #         else:
+    #             if tst_labels[i] == 0:
+    #                 correct += 1
+    #             else:
+    #                 incorrect += 1
+    #
+    #     print("Results for test set: ", str(correct / (correct + incorrect)))
 
 
     return clf, scaler
