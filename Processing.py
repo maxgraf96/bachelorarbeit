@@ -1,3 +1,23 @@
+# Copyright (c) 2019 Max Graf
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import glob
 import time
 
@@ -9,8 +29,17 @@ from numba import jit
 import AudioConverter as ac
 import util
 
-# @jit(cache=True)
-def preprocessing_new(wav_path):
+@jit(cache=True)
+def preprocessing(wav_path):
+    """
+    Preprocessing for both MFCC and CFA calculation.
+    :param wav_path: The (absolute or relative) path to the file to preprocess
+    :return: The signal converted to mono,
+        the sample rate of the signal,
+        the frequencies of the spectrogram,
+        the times of the spectrogram,
+        the spectrogram itself
+    """
     (rate, signal) = scipy.io.wavfile.read(wav_path)
     sig = np.array(signal)
 
@@ -25,7 +54,7 @@ def preprocessing_new(wav_path):
 
     if rate < 11025:
         raise ValueError(
-            "The sampling rate of the incoming signal is too low for Continuous Frequency Activation and GRAD processing.")
+            "The sampling rate of the incoming signal is too low for Continuous Frequency Activation processing.")
 
     # Cut the spectrogram to 11khz for cfa processing
     # NOTE: Assuming that the frequencies are distributed linearly along the spectrogram
@@ -38,10 +67,10 @@ def preprocessing_new(wav_path):
 @jit(cache=True)
 def cfa_filerate_preprocessing(file):
     """
-    Filter rate preprocessing for CFA and GRAD
+    Filter rate preprocessing for CFA
     :param file: The file to preprocess. The function checks if an 11kHz file exists and if not, converts the given file
     to an 11kHz MONO file.
-    :return: the processed file or the original (11kHz file if it already exists)
+    :return: the processed file or the original file (if it already exists and was 11kHz)
     """
     # Read the audio file and cut off all frequencies > 11kHz
     # Check if a converted wav is present before converting to 11kHz wav
@@ -61,12 +90,14 @@ def cfa_filerate_preprocessing(file):
 
 
 @jit(cache=True)
-def cfa_preprocessing(file):
-    start = time.time()
-    file = cfa_filerate_preprocessing(file)
-
-    end = time.time()
-    (rate, signal) = wav.read(file)
+def cfa_preprocessing(wav_path):
+    """
+    Processing specific for the CFA feature.
+    :param wav_path: The (absolute or relative) path to the wav file to preprocess
+    :return: The spectrogram of the mono signal
+    """
+    wav_path = cfa_filerate_preprocessing(wav_path)
+    (rate, signal) = wav.read(wav_path)
     sig = np.array(signal)
 
     # Convert signal to mono

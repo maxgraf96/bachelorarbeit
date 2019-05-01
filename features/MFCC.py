@@ -1,3 +1,23 @@
+# Copyright (c) 2019 Max Graf
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 import glob
 
 import joblib
@@ -6,60 +26,37 @@ import scipy.io.wavfile as wav
 import sklearn
 import tensorflow as tf
 from numba import jit
-# from python_speech_features import delta
-# from python_speech_features import mfcc
-from tqdm import tqdm
-
-from features.MFCC_base import mfcc, delta
-from sklearn.decomposition import PCA
-from sklearn.neighbors import KNeighborsClassifier
 
 import AudioConverter as ac
 import util
+from features.MFCC_base import mfcc, delta
 
 
-def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
+def train_mfcc_nn(path_speech, path_music, max_duration):
     """
-    Trains a TensorFlow neural network
+    Trains the MFCC classifier, a Keras neural network
     :param path_speech: The path to the speech data
     :param path_music: The path to the music data
     :param max_duration: The total duration of files that should be selected of each class. For example, 5000 would
     train the network with 5000 minutes of speech files and 5000 minutes of music files
-    :param test: If the data should be split into a training and a test set
     :return: The trained classifier and the scaler used to scale the training data
     """
 
     # Use existing training data (= extracted MFCCs). This is to skip the process of recalculating the MFCC each time.
-    # WARNING: If the MFCC calculation method is changed, the joblib files must be deleted manually.
-    if len(glob.glob(util.data_path + "data/mfcc_trn.joblib")) < 1:
+    # WARNING: If the MFCC calculation method is changed or the training data changes the joblib files must be deleted manually.
+    if len(glob.glob(util.data_path + "mfcc_trn.joblib")) < 1:
         trn, lbls = calculate_mfccs(path_speech, path_music, max_duration)
-        joblib.dump(trn, util.data_path + "data/mfcc_trn.joblib")
-        joblib.dump(lbls, util.data_path + "data/mfcc_lbls.joblib")
+        joblib.dump(trn, util.data_path + "mfcc_trn.joblib")
+        joblib.dump(lbls, util.data_path + "mfcc_lbls.joblib")
     else:
-        trn = joblib.load(util.data_path + "data/mfcc_trn.joblib")
-        lbls = joblib.load(util.data_path + "data/mfcc_lbls.joblib")
+        trn = joblib.load(util.data_path + "mfcc_trn.joblib")
+        lbls = joblib.load(util.data_path + "mfcc_lbls.joblib")
 
-    # if test:
-    #     # Attach labels to data for random shuffling
-    #     train = np.empty(shape=(trn.shape[0], trn.shape[1] + 1))
-    #     train[:, :trn.shape[1]] = trn
-    #     train[:, train.shape[1] - 1] = lbls
-    #
-    #     # Split randomly into training and test with a ratio of 50/50
-    #     if trn.shape[0] % 2 is not 0:
-    #         trn = np.delete(trn, trn.shape[0] - 1, axis=0)
-    #     trn, tst = np.vsplit(train[np.random.permutation(trn.shape[0])], 2)
-    #
-    #     # Detach labels from training data
-    #     lbls = trn[:, trn.shape[1] - 1]
-    #     trn = trn[:, :-1]
-
-    # Preprocessing
+    # Scale the training data
     scaler = sklearn.preprocessing.StandardScaler()
     trn = scaler.fit_transform(trn)
 
-    # Classifier fitting
-    # Tensorflow nn
+    # Prepare the model
     clf = tf.keras.models.Sequential([
         tf.keras.layers.Flatten(input_shape=(1, 26)),
         tf.keras.layers.Dense(16, activation=tf.nn.relu),
@@ -68,31 +65,10 @@ def train_mfcc_nn(path_speech, path_music, max_duration, test=True):
     ])
     clf.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
+    # The reshaping of data is necessary for the use of this network
     trn = trn.reshape((trn.shape[0], 1, trn.shape[1]))
+    # Fit the classifier
     clf.fit(trn, lbls, epochs=5)
-
-    # if test:
-    #     # Run on test set
-    #     tst_labels = tst[:,tst.shape[1] - 1]
-    #     tst = tst[:, :-1]
-    #     correct = 0
-    #     incorrect = 0
-    #
-    #     for i in tqdm(range(len(tst))):
-    #         result = predict_nn(clf, scaler, tst[i].reshape(1, -1))
-    #         if result >= 0.5:
-    #             if tst_labels[i] == 1:
-    #                 correct += 1
-    #             else:
-    #                 incorrect += 1
-    #         else:
-    #             if tst_labels[i] == 0:
-    #                 correct += 1
-    #             else:
-    #                 incorrect += 1
-    #
-    #     print("Results for test set: ", str(correct / (correct + incorrect)))
-
 
     return clf, scaler
 
@@ -105,7 +81,7 @@ def predict_nn(clf, scaler, mfcc_in):
     :return: An array that contains the predicted value (0 or 1) for each MFCC that was provided.
     """
 
-    # Scale the incoming data
+    # Scale the incoming data using the same scaler used to scale the training data
     mfcc_in = scaler.transform(mfcc_in)
     # Reshape the data so the network can process it
     mfcc_in = mfcc_in.reshape((mfcc_in.shape[0], 1, mfcc_in.shape[1]))
@@ -113,9 +89,19 @@ def predict_nn(clf, scaler, mfcc_in):
     prediction = clf.predict(mfcc_in)
     # For each prediction, compare the predicted values for the two classes (speech and music)
     result = np.greater(prediction[:, 1], prediction[:, 0])
+    # np.greater() returns an array of boolean values. The .astype(int) call converts those values to 0 and 1.
     return result.astype(int)
 
 def calculate_mfccs(path_speech, path_music, max_duration):
+    """
+    Calculates MFCC feature vectors. There are two termination conditions for this process.
+    1. The processed data reaches the max_duration.
+    2. All files in the "path_speech" folder or "path_music" folder have been processed.
+    :param path_speech: The (absolute or relative) path to the speech training data.
+    :param path_music: The (absolute or relative) path to the music training data.
+    :param max_duration: IN MINUTES. The duration of data of each class that should be processed. Example: 20000
+    :return:
+    """
     # -------------------------- Speech --------------------------
     speech_files = glob.glob(path_speech + "/**/*.wav", recursive=True)  # list of files in given path
     # Remove 11 kHz files from list
@@ -159,8 +145,8 @@ def calculate_mfccs(path_speech, path_music, max_duration):
     sp_lbls = np.zeros(len(sp_mfccs))
 
     # -------------------------- Music --------------------------
+    # Convert any mp3s in the music directory to WAV
     mp3s = glob.glob(path_music + "/**/*.mp3", recursive=True)  # list of mp3s in given path
-    # convert mp3s to wavs
     for i in range(len(mp3s)):
         # Only convert if the converted file doesn't exist yet
         if len(glob.glob(mp3s[i][:-4] + ".wav")) > 0:
@@ -170,14 +156,14 @@ def calculate_mfccs(path_speech, path_music, max_duration):
         print("Converting " + str(mp3s[i]) + " to wav.")
         ac.mp3_to_16_khz_wav(mp3s[i])
 
-    # process music wavs
+    # Process music wavs
     wavs = glob.glob(path_music + "/**/*.wav", recursive=True)
     # Remove 11 kHz files from list
     wavs = [file for file in wavs if "11_kHz.wav" not in file]
     processed_files = []
     wav_mfccs = []
-    acc_duration = 0  # reset processed length
-    retries = 0  # retries for the skipping of files that are too long
+    acc_duration = 0  # Reset processed length
+    retries = 0  # Retries for the skipping of files that are too long
     for i in range(len(wavs)):
         if wavs[i] in processed_files:
             continue
@@ -203,7 +189,7 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
         # Only append the MFCCs if the number of current MFCCs + the number of MFCCs in the currently processed file
         # do not exceed the total number of MFCCs in the speech set.
-        # This guarantees that the numbers of MFCCs in the speech and music sets are always ~ the same
+        # This guarantees that the numbers of MFCCs in the speech and music sets are always close to the same
         if len(wav_mfccs) + len(current_mfccs) > len_sp_mfccs:
             # Use 'continue' and not 'break' because that way it migth be possible that a shorter file is
             # found that can 'fill the remaining-MFCC-gap'

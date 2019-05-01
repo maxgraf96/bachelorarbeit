@@ -1,3 +1,23 @@
+# Copyright (c) 2019 Max Graf
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 # Compare Algorithms
 import glob
 
@@ -18,15 +38,15 @@ import util
 # Load dataset
 from features import MFCC
 
-if len(glob.glob(util.data_path + "data/mfcc_trn_gtzan.joblib")) < 1:
-    X, Y = MFCC.calculate_mfccs(util.data_path + "data/speech/gtzan", util.data_path + "data/music/gtzan", max_duration=1800)
-    joblib.dump(X, util.data_path + "data/mfcc_trn_gtzan.joblib")
-    joblib.dump(X, util.data_path + "data/mfcc_lbls_gtzan.joblib")
+if len(glob.glob(util.data_path + "mfcc_trn_gtzan.joblib")) < 1:
+    X, Y = MFCC.calculate_mfccs(util.data_path + "speech/gtzan", util.data_path + "music/gtzan", max_duration=1800)
+    joblib.dump(X, util.data_path + "mfcc_trn_gtzan.joblib")
+    joblib.dump(X, util.data_path + "mfcc_lbls_gtzan.joblib")
 else:
-    X = joblib.load(util.data_path + "data/mfcc_trn_gtzan.joblib")
-    Y = joblib.load(util.data_path + "data/mfcc_lbls_gtzan.joblib")
+    X = joblib.load(util.data_path + "mfcc_trn_gtzan.joblib")
+    Y = joblib.load(util.data_path + "mfcc_lbls_gtzan.joblib")
 
-# Prepare configuration for cross validation test harness
+# Prepare configuration for cross validation
 seed = 7
 
 # Prepare models
@@ -75,7 +95,7 @@ else:
         print()
         test_scores.append(current_score)
 
-# boxplot algorithm comparison
+# Boxplot algorithm comparison
 fig = plt.figure()
 plt.title('Algorithm Comparison')
 ax = fig.add_subplot(111)

@@ -21,16 +21,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
 import configparser
-import datetime
 import os
 import stat
 import sys
 import threading
 import urllib.request
-import time
-
-# instantiate
-from numba import jit
 
 config = configparser.ConfigParser()
 
@@ -69,7 +64,7 @@ def read_settings():
     return config
 
 
-def my_record_worker(stoprec, station, target_dir, linux_public, fileName, duration):
+def record_worker(station, target_dir, linux_public, fileName, duration):
     settings = read_settings()
     url = settings.get('STATIONS', station)
     #cur_dt_string = datetime.datetime.now().strftime('%Y-%m-%dT%H_%M_%S')
@@ -98,7 +93,7 @@ def my_record_worker(stoprec, station, target_dir, linux_public, fileName, durat
         target.write(conn.read(length))
 
 
-def my_record(url, duration, file_name):
+def record(url, duration, file_name):
     streamurl = url
     if streamurl.endswith('.m3u'):
         with urllib.request.urlopen(streamurl) as remotefile:
@@ -108,16 +103,11 @@ def my_record(url, duration, file_name):
                     break
         streamurl = tmpstr
     target_dir = "data/test"
-    stoprec = threading.Event()
 
-    recthread = threading.Thread(target=my_record_worker, args=(stoprec, streamurl, target_dir, False, file_name, duration))
+    recthread = threading.Thread(target=record_worker, args=(streamurl, target_dir, False, file_name, duration))
     recthread.setDaemon(True)
     recthread.start()
     recthread.join(timeout=duration)
-
-    if recthread.is_alive:
-        stoprec.set()
-        recthread.join()
 
 
 def list(args):
