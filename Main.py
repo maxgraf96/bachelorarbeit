@@ -261,6 +261,6 @@ def clear_streams():
     Clear all files from the "data/test" folder (contains previous streams)
     :return:
     """
-    for p in Path("data/test").glob("*"):
+    for p in Path("data/test").glob("*.wav"):
         p.unlink()
 
