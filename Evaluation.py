@@ -49,16 +49,16 @@ plots_path = "plots/"
 def run():
     print("Loading models...")
     # MFCC Keras nn
-    clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
-    scaler_mfcc = joblib.load("scaler_mfcc.joblib")
+    clf_mfcc = tf.keras.models.load_model('saved_classifiers/clf_mfcc.h5')
+    scaler_mfcc = joblib.load("saved_classifiers/scaler_mfcc.joblib")
 
     is_mfcc = True
     is_cfa = True
 
     # How many runs should be used to train the features on the test data
-    runs = 2
+    runs = 10
     # How many samples should be used for each class
-    samples = 10
+    samples = 200
     # The different threshold values against which to compare the CFA values
     thresholds = [3, 3.1, 3.2, 3.25, 3.3, 3.4, 3.5, 3.6, 3.7]
     evaluate_features_on_test_data(runs, samples, is_mfcc, is_cfa, clf_mfcc, scaler_mfcc, thresholds)

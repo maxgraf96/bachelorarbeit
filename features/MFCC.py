@@ -218,13 +218,24 @@ def calculate_mfccs(path_speech, path_music, max_duration):
 
 @jit(cache=True)
 def read_mfcc(sig, rate):
+    """
+    Calculate an MFCC feature vector from a signal
+    :param sig: The signal
+    :param rate: The sample rate (should be 16kHz)
+    :return: 13 MFCC and 13 MFCC delta values in one numpy array
+    """
     mfcc_feat = mfcc(sig, rate, appendEnergy=False)
     d_mfcc_feat = delta(mfcc_feat, 2)
 
     return np.append(mfcc_feat, d_mfcc_feat, axis=1)
 
-def read_mfcc_from_file(filepath):
-    (rate, sig) = wav.read(filepath)
+def read_mfcc_from_file(wav_filepath):
+    """
+    Converts a WAV file from the specified filepath and calculates the MFCC feature vector
+    :param wav_filepath: The filepath to the WAV file
+    :return: The MFCC feature vector
+    """
+    (rate, sig) = wav.read(wav_filepath)
     # Convert signal to mono
     sig = util.stereo2mono(sig)
     return read_mfcc(sig, rate)

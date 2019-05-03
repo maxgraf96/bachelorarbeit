@@ -63,7 +63,7 @@ models = [
 names = []
 # evaluate each model in turn
 test_scores = []
-if len(glob.glob("alg_comparison.joblib")) < 1:
+if len(glob.glob("saved_classifiers/alg_comparison.joblib")) < 1:
     results = []
     scoring = 'accuracy'
     for name, model in models:
@@ -78,12 +78,12 @@ if len(glob.glob("alg_comparison.joblib")) < 1:
         print(msg)
         test_scores.append(current_score)
 
-    joblib.dump(results, "alg_comparison.joblib")
+    joblib.dump(results, "saved_classifiers/alg_comparison.joblib")
 
 else:
     for name, model in models:
         names.append(name)
-    results = joblib.load("alg_comparison.joblib")
+    results = joblib.load("saved_classifiers/alg_comparison.joblib")
     for i in range(len(results)):
         result = results[i]
         current_score = result["test_score"]
@@ -105,4 +105,4 @@ ax.set_xticklabels(names)
 plt.xlabel("Classifier")
 plt.ylabel("Mean accuracy")
 # plt.show()
-plt.savefig("alg_comparison.png")
+plt.savefig("saved_classifiers/alg_comparison.png")

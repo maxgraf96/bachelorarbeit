@@ -19,7 +19,6 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import argparse
 import configparser
 import os
 import stat
@@ -27,31 +26,12 @@ import sys
 import threading
 import urllib.request
 
-config = configparser.ConfigParser()
-
-def check_duration(value):
-    try:
-        value = int(value)
-    except ValueError:
-        raise argparse.ArgumentTypeError(
-            'Duration must be a positive integer.')
-
-    if value < 1:
-        raise argparse.ArgumentTypeError(
-            'Duration must be a positive integer.')
-    else:
-        return value
-
-
 def read_settings():
+    """
+    Reads the configuration (available radio stations and their URLs) from the "radiorec_settings.ini" config file
+    :return: The configuration as a dict
+    """
     settings_base_dir = ''
-    if sys.platform.startswith('linux'):
-        settings_base_dir = ''
-    elif sys.platform == 'win32':
-        settings_base_dir = os.getenv('LOCALAPPDATA') + os.sep + 'radiorec'
-    elif sys.platform == 'darwin':
-        settings_base_dir = os.getenv(
-            'HOME') + os.sep + 'Library' + os.sep + 'Application Support' + os.sep + 'radiorec'
     settings_base_dir += os.sep
     config = configparser.ConfigParser()
     try:
@@ -63,8 +43,15 @@ def read_settings():
         sys.exit()
     return config
 
-
 def record_worker(station, target_dir, linux_public, fileName, duration):
+    """
+    The worker that performs the actual streaming (in a separate thread)
+    :param station: The station URL from which to stream from
+    :param target_dir: The target directory in which the stream is saved
+    :param linux_public: Apply write permissions if on linux
+    :param fileName: The name of the saved file
+    :param duration: The duration of the stream (in seconds)
+    """
     settings = read_settings()
     url = settings.get('STATIONS', station)
     #cur_dt_string = datetime.datetime.now().strftime('%Y-%m-%dT%H_%M_%S')
@@ -94,6 +81,12 @@ def record_worker(station, target_dir, linux_public, fileName, duration):
 
 
 def record(url, duration, file_name):
+    """
+    Record from the given url for a given duration and store mp3 in given path
+    :param url: The url from which to stream from. Must be an mp3 streaming source
+    :param duration: The duration for which the data should be streamed in seconds
+    :param file_name: The name of the file in which the data should be stored
+    """
     streamurl = url
     if streamurl.endswith('.m3u'):
         with urllib.request.urlopen(streamurl) as remotefile:
@@ -108,9 +101,3 @@ def record(url, duration, file_name):
     recthread.setDaemon(True)
     recthread.start()
     recthread.join(timeout=duration)
-
-
-def list(args):
-    settings = read_settings()
-    for key in sorted(settings['STATIONS']):
-        print(key)

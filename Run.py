@@ -68,17 +68,17 @@ def run():
     Main.clear_streams()
 
     # Persist classifier if it does not exist
-    if len(glob.glob("clf_mfcc.h5")) < 1:
+    if len(glob.glob("saved_classifiers/clf_mfcc.h5")) < 1:
         print("Saving model...")
         clf_mfcc, scaler_mfcc = MFCC.train_mfcc_nn(util.data_path + "speech", util.data_path + "music", 20000)
-        clf_mfcc.save('clf_mfcc.h5')
+        clf_mfcc.save('saved_classifiers/clf_mfcc.h5')
         # Persist scaler
-        joblib.dump(scaler_mfcc, "scaler_mfcc.joblib")
+        joblib.dump(scaler_mfcc, "saved_classifiers/scaler_mfcc.joblib")
 
     else:
         print("Restoring models...")
-        clf_mfcc = tf.keras.models.load_model('clf_mfcc.h5')
-        scaler_mfcc = joblib.load("scaler_mfcc.joblib")
+        clf_mfcc = tf.keras.models.load_model('saved_classifiers/clf_mfcc.h5')
+        scaler_mfcc = joblib.load("saved_classifiers/scaler_mfcc.joblib")
 
     if live_stream:
         Main.calc_from_stream(station, clf_mfcc, scaler_mfcc, is_mfcc, is_cfa, listening_preference, replacement_path)

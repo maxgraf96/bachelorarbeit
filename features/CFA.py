@@ -71,7 +71,6 @@ def calculate_peakiness(peaks, minima, act_func):
     peakiness = np.sum(finals)
     return peakiness
 
-
 def calculate_from_spectrogram(spectrogram, threshold):
     """
     Calculates the CFA value from a spectrogram
