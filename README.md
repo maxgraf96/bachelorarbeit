@@ -1,10 +1,16 @@
 **A realtime speech-music descriminator for the Raspbery Pi**
 
+**Requirements**
+
+LLVM:
+
+On the _Raspian_ platform install LLVM version _3.8.0_. On Ubuntu 18.10/19.04 version 8.0.0 is recommended.
+
 **Installation**
 
 The software uses _pip_ and _virtual environments_ for managing packages.
 
-Installation steps:
+Manual installation steps:
 
 1. Install _ffmpeg_: `sudo apt install ffmpeg`
 2. Install LLVM (http://releases.llvm.org/download.html) version 4 (Raspberry Pi) or version 8 (Ubuntu desktop environment).

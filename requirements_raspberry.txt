@@ -16,7 +16,7 @@ joblib==0.13.2
 Keras-Applications==1.0.7
 Keras-Preprocessing==1.0.9
 kiwisolver==1.0.1
-llvmlite==0.28.0
+llvmlite==0.15.0
 matplotlib==3.0.3
 mock==2.0.0
 numba==0.32.0
